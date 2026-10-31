@@ -249,3 +249,14 @@ def test_saves_crud(client):
     sid = saves[0]["id"]
     r = client.delete(f"/api/saves/{sid}")
     assert r.status_code == 200
+
+
+def test_unknown_satellite_assumptions():
+    """无公开参数的卫星走类别默认（覆盖 category_of_group 全路径）。"""
+    from app.services.game import rf_model
+
+    sig = rf_model.signal_assumptions(99999, "science")
+    assert sig.freq_mhz > 0
+    assert "假设" in sig.source or "假设" in sig.modulation
+    sig2 = rf_model.signal_assumptions(12345, "visual")
+    assert sig2.freq_mhz > 0

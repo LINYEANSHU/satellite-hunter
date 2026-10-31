@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CATEGORY_LABELS, gameApi, type EquipmentItem } from '../api/game'
+import { CATEGORY_LABELS, gameApi, phase4Api, type EquipmentItem } from '../api/game'
 import PageHeader from '../components/PageHeader'
 import { useGameStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
@@ -135,6 +135,9 @@ export default function StationPage() {
                     {eq ? (
                       <>
                         <div className="text-slate-200 text-[13px]">{eq.name}</div>
+                        {eq.status === 'fault' && (
+                          <div className="text-hud-red text-[10px] mt-0.5">⚠ 故障（磨损 {Math.round(100 - eq.condition)}%）— 需维修</div>
+                        )}
                         <div className="flex gap-2 mt-1.5">
                           <button
                             className="btn h-6 text-[11px] px-2"
@@ -143,6 +146,16 @@ export default function StationPage() {
                           >
                             拆卸
                           </button>
+                          {eq.status === 'fault' && (
+                            <button
+                              className="btn btn-primary h-6 text-[11px] px-2"
+                              disabled={busy}
+                              onClick={() => void act(() => phase4Api.repair(eq.id, saveId))}
+                              data-testid={`repair-${eq.id}`}
+                            >
+                              维修
+                            </button>
+                          )}
                         </div>
                       </>
                     ) : (

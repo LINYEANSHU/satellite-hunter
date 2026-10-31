@@ -3,6 +3,7 @@ import { NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { api, type Capabilities } from './api/client'
 import { useGameStore } from './stores/gameStore'
 import TimeBar from './components/TimeBar'
+import GameNotifications, { TutorialOverlay } from './components/GameNotifications'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
 import StationPage from './pages/StationPage'
@@ -92,6 +93,10 @@ function Shell() {
 
       {/* 全局时间控制（需求 11.3：底部时间控制条） */}
       <TimeBar />
+
+      {/* 游戏事件提示 + 首次教程 */}
+      <GameNotifications />
+      <TutorialOverlay />
     </div>
   )
 }

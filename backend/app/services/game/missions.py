@@ -235,6 +235,13 @@ def start_mission(db: Session, mission_id: str) -> Mission:
     if station is None or station.status != "active":
         raise AppError(409, "STATION_OFFLINE", "地面站不可用")
 
+    # 设备故障时不能启动（需求 8.3：故障需维修）
+    from app.services.game.equipment import station_equipment
+
+    faulty = [e for e in station_equipment(db, m.station_id) if e.status == "fault"]
+    if faulty:
+        raise AppError(409, "EQUIPMENT_FAULT", "站内有故障设备，请先在设备管理页维修")
+
     # 计算机并发限制
     eq = station_by_category(db, m.station_id)
     pc = eq.get("computer")
@@ -279,6 +286,8 @@ def _pointing_error(rf: rf_model.StationRF, rng: random.Random, el: float, az_ra
 
 def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
     """从 AOS 到 until（≤LOS）按步长采样：仰角/链路/数据率。"""
+    from app.services.game.events import player_effects
+
     prop = _station_propagator(mission.satellite_id)
     sat = prop.get_satrec(mission.satellite_id)
     entry = _entry_of(mission.satellite_id)
@@ -287,6 +296,9 @@ def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
 
     eq = station_by_category(db, mission.station_id)
     rf = rf_model.station_rf(eq)
+    effects = player_effects(db, mission.save_id)
+    snr_bonus = float(effects.get("snr_bonus_db", 0.0))
+    data_bonus = float(effects.get("data_bonus", 0.0))
 
     duration = (mission.los - mission.aos).total_seconds()
     n = max(2, int(duration / _INTEGRATION_STEP_S))
@@ -312,8 +324,18 @@ def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
         prev_az, prev_el = la.azimuth_deg, la.elevation_deg
 
         pe = _pointing_error(rf, random.Random(f"{mission.seed}:{i}"), la.elevation_deg, az_rate, el_rate)
-        link = rf_model.compute_link(rf, sig, la.elevation_deg, la.range_km, la.range_rate_km_s, pe)
-        samples.append({"t": t, "el": la.elevation_deg, "az": la.azimuth_deg, "range_km": la.range_km, "link": link, "dt": duration / n})
+        link = rf_model.compute_link(rf, sig, la.elevation_deg, la.range_km, la.range_rate_km_s, pe, snr_bonus)
+        samples.append(
+            {
+                "t": t,
+                "el": la.elevation_deg,
+                "az": la.azimuth_deg,
+                "range_km": la.range_km,
+                "link": link,
+                "dt": duration / n,
+                "data_bonus": data_bonus,
+            }
+        )
     return samples
 
 
@@ -376,10 +398,10 @@ def duration_ratio(samples, m) -> float:
 
 
 def _integrate_data(samples, sig) -> float:
-    """累计数据量 MB = Σ rate_kbps × quality/100 × dt / 8 / 1024。"""
+    """累计数据量 MB = Σ rate_kbps × quality/100 × dt / 8 / 1024（含研究加成）。"""
     mb = 0.0
     for s in samples:
-        kbps = sig.data_rate_kbps * (s["link"].quality / 100.0)
+        kbps = sig.data_rate_kbps * (s["link"].quality / 100.0) * (1.0 + s.get("data_bonus", 0.0))
         mb += kbps * s["dt"] / 8.0 / 1024.0
     return mb
 
@@ -403,6 +425,12 @@ def _finalize(db: Session, m: Mission, station, sig) -> None:
     success = ratio >= 0.9 and stored_mb > 0 and avg_margin > 0
     ratio_data = stored_mb / max(m.estimated_data_mb, 1e-9)
 
+    # 特殊事件：奖励窗口 + 研究加成
+    from app.services.game.events import player_effects
+
+    effects = player_effects(db, m.save_id)
+    credit_mult = 1.0 + float(effects.get("credit_bonus", 0.0))
+
     m.status = "completed" if success else "failed"
     m.ended_at = datetime.utcnow()
     m.data_produced_mb = round(stored_mb, 3)
@@ -417,7 +445,7 @@ def _finalize(db: Session, m: Mission, station, sig) -> None:
         # 奖励按数据完成度缩放
         player = db.get(PlayerState, m.save_id)
         if player:
-            player.credits += round(m.reward_credits * min(1.0, 0.4 + 0.6 * ratio_data))
+            player.credits += round(m.reward_credits * min(1.0, 0.4 + 0.6 * ratio_data) * credit_mult)
             player.research_points += round(m.reward_rp * min(1.0, 0.4 + 0.6 * ratio_data))
             player.xp += m.reward_xp
             player.total_missions_done += 1

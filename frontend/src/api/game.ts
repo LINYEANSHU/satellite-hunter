@@ -262,6 +262,68 @@ export interface SatdumpJobView {
   created_at: string | null
 }
 
+// ---------------------------------------------------------------- Phase 4
+export interface ScheduleSuggestion {
+  satellite_id: number
+  satellite_name: string
+  aos: string
+  los: string
+  max_elevation_deg: number
+  frequency_mhz: number
+  reward_credits: number
+  score: number
+  new_satellite: boolean
+}
+
+export interface ResearchItem {
+  id: string
+  name: string
+  desc: string
+  cost_rp: number
+  requires: string[]
+  unlocked: boolean
+}
+
+export interface GameEventView {
+  ts: number
+  kind: string
+  source: string
+  [k: string]: unknown
+}
+
+export const phase4Api = {
+  schedulePlan: (body: {
+    save_id: string
+    station_id: string
+    hours?: number
+    rules?: Record<string, number | string>
+    apply?: boolean
+    at?: string
+  }) =>
+    request<{ applied: boolean; created: number; suggestions: ScheduleSuggestion[] }>(
+      '/api/game/scheduler/plan',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  events: (saveId: string) => request<GameEventView[]>(`/api/game/events?save_id=${saveId}`),
+  eventsCheck: (saveId: string, at?: string) =>
+    request<{ fired: GameEventView[] }>('/api/game/events/check', {
+      method: 'POST',
+      body: JSON.stringify({ save_id: saveId, at }),
+    }),
+  repair: (equipmentId: string, saveId: string) =>
+    request<{ repaired: string; cost: number }>(`/api/game/equipment/${equipmentId}/repair`, {
+      method: 'POST',
+      body: JSON.stringify({ save_id: saveId }),
+    }),
+  research: (saveId: string) =>
+    request<{ items: ResearchItem[]; effects: Record<string, number> }>(`/api/game/research?save_id=${saveId}`),
+  researchUnlock: (researchId: string, saveId: string) =>
+    request<{ unlocked: string; cost_rp: number }>(`/api/game/research/${researchId}/unlock`, {
+      method: 'POST',
+      body: JSON.stringify({ save_id: saveId }),
+    }),
+}
+
 export const MISSION_TYPE_LABELS: Record<string, string> = {
   tutorial: '新手观测',
   track: '卫星追踪',

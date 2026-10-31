@@ -42,7 +42,7 @@ def _interp_atm_loss(el_deg: float) -> float:
 
 
 def category_of_group(group: str) -> str:
-    return _assumptions()["categories"].get(group, "other")
+    return _assumptions()["_meta"]["categories"].get(group, "other")
 
 
 @dataclass
@@ -185,8 +185,9 @@ def compute_link(
     range_km: float,
     range_rate_km_s: float | None = None,
     pointing_error_deg: float = 0.0,
+    snr_bonus_db: float = 0.0,
 ) -> LinkResult:
-    """计算某一时刻的链路预算。确定性，无随机。"""
+    """计算某一时刻的链路预算。确定性，无随机。snr_bonus_db 来自研究加成。"""
     reasons: list = []
     freq_mhz = sig.freq_mhz
     bw_khz = min(sig.bandwidth_khz, rf.sdr_max_bw_khz) if rf.sdr_max_bw_khz else sig.bandwidth_khz
@@ -234,7 +235,7 @@ def compute_link(
     )
 
     noise_dbm = -174.0 + 10.0 * math.log10(bw_khz * 1000.0) + rf.sdr_nf_db
-    snr = rx_power - noise_dbm
+    snr = rx_power - noise_dbm + snr_bonus_db
     margin = snr - sig.required_snr_db
 
     doppler = doppler_shift_hz(sig.freq_mhz * 1e6, range_rate_km_s) if range_rate_km_s is not None else 0.0

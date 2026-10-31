@@ -11,6 +11,7 @@ import {
 import PageHeader from '../components/PageHeader'
 import { useGameStore, useTimeStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
+import { phase4Api, type ScheduleSuggestion } from '../api/game'
 
 const STATUS_TABS = [
   { key: '', label: '全部' },
@@ -143,6 +144,11 @@ export default function MissionControlPage() {
             ))}
           </div>
         </div>
+
+        {/* 自动调度面板（需求 8.2/8.4） */}
+        {stations.length > 0 && (
+          <SchedulerPanel saveId={saveId} stations={stations} defaultStation={activeStationId} onApplied={reload} />
+        )}
 
         {/* 执行面板 */}
         {executingId && (
@@ -534,6 +540,128 @@ function CreateMissionModal({
             {busy ? '规划中…' : '规划任务'}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** 自动调度面板：确定性规则（需求 8.2）+ 玩家优先级（需求 8.4）。 */
+function SchedulerPanel({
+  saveId,
+  stations,
+  defaultStation,
+  onApplied,
+}: {
+  saveId: string
+  stations: { id: string; name: string }[]
+  defaultStation: string | null
+  onApplied: () => void
+}) {
+  const [stationId, setStationId] = useState(defaultStation ?? stations[0]?.id ?? '')
+  const [hours, setHours] = useState(24)
+  const [minEl, setMinEl] = useState(20)
+  const [preferUncollected, setPreferUncollected] = useState(true)
+  const [suggestions, setSuggestions] = useState<ScheduleSuggestion[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  const preview = async () => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await phase4Api.schedulePlan({
+        save_id: saveId,
+        station_id: stationId,
+        hours,
+        rules: { min_max_elevation: minEl, prefer_uncollected: preferUncollected ? 1.5 : 0, max_missions: 8 },
+      })
+      setSuggestions(r.suggestions)
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const apply = async () => {
+    setBusy(true)
+    try {
+      const r = await phase4Api.schedulePlan({
+        save_id: saveId,
+        station_id: stationId,
+        hours,
+        rules: { min_max_elevation: minEl, prefer_uncollected: preferUncollected ? 1.5 : 0, max_missions: 8 },
+        apply: true,
+      })
+      setMsg(`已创建 ${r.created} 个自动任务`)
+      setSuggestions(null)
+      onApplied()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="w-72 shrink-0 panel overflow-y-auto" data-testid="scheduler-panel">
+      <div className="panel-header">自动调度（确定性规则）</div>
+      <div className="p-3 space-y-2.5 text-xs">
+        <select className="input !h-7 text-[11px]" value={stationId} onChange={(e) => setStationId(e.target.value)}>
+          {stations.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <label className="block text-hud-dim">
+              预测窗口 {hours}h
+          <input type="range" min={6} max={72} step={6} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="w-full accent-cyan-400" />
+        </label>
+        <label className="block text-hud-dim">
+              最低过境仰角 {minEl}°
+          <input type="range" min={5} max={60} step={5} value={minEl} onChange={(e) => setMinEl(Number(e.target.value))} className="w-full accent-cyan-400" />
+        </label>
+        <label className="flex items-center gap-2 text-hud-dim">
+          <input type="checkbox" checked={preferUncollected} onChange={(e) => setPreferUncollected(e.target.checked)} className="accent-cyan-400" />
+              优先未收藏卫星
+        </label>
+        <div className="flex gap-2">
+          <button className="btn h-7 text-[11px] flex-1" disabled={busy} onClick={() => void preview()} data-testid="scheduler-preview">
+            生成建议
+          </button>
+          <button
+            className="btn btn-primary h-7 text-[11px] flex-1"
+            disabled={busy || !suggestions?.length}
+            onClick={() => void apply()}
+            data-testid="scheduler-apply"
+          >
+            应用并创建
+          </button>
+        </div>
+        {msg && <div className="text-[11px] text-hud-cyan">{msg}</div>}
+        {suggestions && (
+          <div className="space-y-1">
+            {suggestions.length === 0 && <div className="text-[11px] text-hud-dim">窗口内无满足规则的过境</div>}
+            {suggestions.map((s) => (
+              <div key={s.satellite_id + s.aos} className="panel px-2 py-1.5 flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="text-[11px] text-slate-300 truncate">
+                    {s.new_satellite && <span className="text-hud-violet mr-1">NEW</span>}
+                    {s.satellite_name}
+                  </div>
+                  <div className="text-[10px] font-mono text-hud-dim">
+                    {new Date(s.aos).toLocaleString()} · {s.max_elevation_deg}°
+                  </div>
+                </div>
+                <span className="chip text-hud-amber shrink-0">+₡{s.reward_credits}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-[10px] text-hud-dim leading-relaxed border-t border-space-600/40 pt-2">
+          调度为确定性规则算法（频段覆盖/冲突/仰角/收藏加权），设备安全约束不交由任何模型判定。
+        </p>
       </div>
     </div>
   )
