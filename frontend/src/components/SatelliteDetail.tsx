@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { orbitApi, type PassInfo, type SatelliteDetail as Detail } from '../api/orbit'
+import { gameApi } from '../api/game'
 import { useCatalogStore } from '../stores/catalogStore'
+import { useGameStore, useTimeStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
-import { useTimeStore } from '../stores/gameStore'
-import WipBadge from './WipBadge'
 
 function ageClass(h: number | null): string {
   if (h === null) return 'text-hud-dim'
@@ -12,14 +13,17 @@ function ageClass(h: number | null): string {
   return 'text-hud-green'
 }
 
-/** 右侧面板：选中卫星详情 + 过境预测。 */
+/** 右侧面板：选中卫星详情 + 过境预测 + 快捷任务/收藏。 */
 export default function SatelliteDetail() {
   const selectedId = useCatalogStore((s) => s.selectedId)
   const select = useCatalogStore((s) => s.select)
   const activeStation = useStationStore((s) => s.stations.find((x) => x.id === s.activeStationId))
+  const saveId = useGameStore((s) => s.saveId)
+  const nav = useNavigate()
   const [detail, setDetail] = useState<Detail | null>(null)
   const [passes, setPasses] = useState<PassInfo[]>([])
   const [err, setErr] = useState<string | null>(null)
+  const [actionMsg, setActionMsg] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedId) {
@@ -154,17 +158,53 @@ export default function SatelliteDetail() {
         </section>
 
         <section className="flex gap-2 pt-1 border-t border-space-600/50">
-          <button className="btn flex-1 opacity-50" disabled title="Phase 2 交付：任务系统">
+          <button
+            className="btn btn-primary flex-1"
+            disabled={!saveId || !activeStation}
+            title={!saveId ? '请先进入存档' : !activeStation ? '请先建立地面站' : '以下一次过境创建信号捕获任务'}
+            onClick={async () => {
+              if (!selectedId || !saveId || !activeStation) return
+              try {
+                setActionMsg(null)
+                await gameApi.createMission({
+                  save_id: saveId,
+                  station_id: activeStation.id,
+                  satellite_id: selectedId,
+                  type: 'capture',
+                })
+                setActionMsg('✓ 已规划捕获任务，前往任务控制中心查看')
+              } catch (e) {
+                setActionMsg(e instanceof Error ? e.message : String(e))
+              }
+            }}
+            data-testid="quick-mission"
+          >
             建立接收任务
           </button>
-          <button className="btn flex-1 opacity-50" disabled title="Phase 2 交付：图鉴系统">
+          <button
+            className="btn flex-1"
+            disabled={!saveId}
+            title={!saveId ? '请先进入存档' : '收藏该卫星到图鉴'}
+            onClick={async () => {
+              if (!selectedId || !saveId) return
+              try {
+                await gameApi.favorite(selectedId, saveId)
+                setActionMsg('✓ 已收藏')
+              } catch (e) {
+                setActionMsg(e instanceof Error ? e.message : String(e))
+              }
+            }}
+            data-testid="quick-favorite"
+          >
             ★ 收藏卫星
           </button>
         </section>
-        <div className="flex gap-2">
-          <WipBadge phase="Phase 2" />
-          <span className="text-[10px] text-hud-dim">任务与收藏功能尚未开放</span>
-        </div>
+        {actionMsg && <div className="text-[11px] text-hud-cyan">{actionMsg}</div>}
+        {!saveId && (
+          <button className="btn h-7 text-xs w-full" onClick={() => nav('/')}>
+            进入存档以启用任务与收藏
+          </button>
+        )}
       </div>
     </div>
   )

@@ -44,6 +44,19 @@ def list_stations(save_id: str, db: Session = Depends(get_db)) -> list[dict]:
 
 @router.post("")
 def create_station(body: StationCreate, db: Session = Depends(get_db)) -> dict:
+    from app.db.models import PlayerState
+    from app.services.game import achievements as ach_service
+    from app.services.game.equipment import create_starter_kit
+
+    # 限制：免费站数量与存档等级相关（经营机制：每个新站有成本）
+    n_existing = db.query(Station).filter(Station.save_id == body.save_id).count()
+    player = db.get(PlayerState, body.save_id)
+    cost = 0 if n_existing == 0 else 2000 * n_existing
+    if player is None:
+        raise AppError(404, "SAVE_NOT_FOUND", "存档不存在")
+    if player.credits < cost:
+        raise AppError(402, "INSUFFICIENT_CREDITS", f"建立新站需要 {cost} Credits")
+
     s = Station(
         save_id=body.save_id,
         name=body.name,
@@ -54,9 +67,16 @@ def create_station(body: StationCreate, db: Session = Depends(get_db)) -> dict:
         is_virtual=body.is_virtual,
     )
     db.add(s)
+    db.flush()
+    if cost > 0:
+        player.credits -= cost
+    create_starter_kit(db, body.save_id, s.id)
+    unlocked = ach_service.check_and_unlock(db, body.save_id)
     db.commit()
-    db.refresh(s)
-    return station_dict(s)
+    d = station_dict(s)
+    d["build_cost"] = cost
+    d["achievements_unlocked"] = unlocked
+    return d
 
 
 @router.patch("/{station_id}")

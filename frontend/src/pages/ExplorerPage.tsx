@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import GlobeScene from '../three/GlobeScene'
-import TimeBar from '../components/TimeBar'
 import SatelliteList from '../components/SatelliteList'
 import SatelliteDetail from '../components/SatelliteDetail'
 import { useStationStore } from '../stores/stationStore'
@@ -82,9 +81,6 @@ export default function ExplorerPage() {
           <SatelliteDetail />
         </div>
       </div>
-
-      {/* 底：时间控制 */}
-      <TimeBar />
 
       {/* 建站弹窗 */}
       {place && (

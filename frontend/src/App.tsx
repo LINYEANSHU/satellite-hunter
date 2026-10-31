@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { api, type Capabilities } from './api/client'
 import { useGameStore } from './stores/gameStore'
+import TimeBar from './components/TimeBar'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
 import StationPage from './pages/StationPage'
@@ -82,10 +83,15 @@ function Shell() {
         </nav>
 
         {/* 内容区 */}
-        <main className="flex-1 min-w-0 p-3 overflow-hidden">
-          <Outlet />
+        <main className="flex-1 min-w-0 p-3 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0">
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      {/* 全局时间控制（需求 11.3：底部时间控制条） */}
+      <TimeBar />
     </div>
   )
 }

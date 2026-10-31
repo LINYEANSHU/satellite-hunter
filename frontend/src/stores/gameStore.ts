@@ -1,13 +1,16 @@
 import { create } from 'zustand'
 
-/** 当前活跃存档的会话状态。Phase 2 接入后端存档系统。 */
+/** 活跃存档会话状态（Phase 2 完整版）。 */
 
 export interface GameSession {
   saveId: string | null
   saveName: string | null
   credits: number
   researchPoints: number
+  xp: number
   level: number
+  totalMissionsDone: number
+  satellitesDiscovered: number
 }
 
 interface GameStore extends GameSession {
@@ -20,13 +23,37 @@ const initial: GameSession = {
   saveName: null,
   credits: 0,
   researchPoints: 0,
+  xp: 0,
   level: 1,
+  totalMissionsDone: 0,
+  satellitesDiscovered: 0,
 }
 
 export const useGameStore = create<GameStore>((set) => ({
-  ...initial,
-  setSession: (s) => set(s),
-  reset: () => set(initial),
+  // 恢复上次活跃存档（页面刷新后保持上下文；数值仍以服务器为准）
+  ...(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('sh-save') || 'null')
+      if (saved?.saveId) return saved
+    } catch {
+      /* ignore */
+    }
+    return {}
+  })(),
+  setSession: (s) => {
+    set(s)
+    const st = useGameStore.getState()
+    if (st.saveId) {
+      localStorage.setItem(
+        'sh-save',
+        JSON.stringify({ saveId: st.saveId, saveName: st.saveName }),
+      )
+    }
+  },
+  reset: () => {
+    localStorage.removeItem('sh-save')
+    set(initial)
+  },
 }))
 
 /**

@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from 'react'
+import { Suspense, useCallback, useEffect } from 'react'
 import { Canvas, type ThreeEvent } from '@react-three/fiber'
 import { MapControls } from '@react-three/drei'
 import Earth from './Earth'
@@ -11,6 +11,16 @@ import { useStationStore } from '../stores/stationStore'
 
 /** 地球主交互区：拖拽旋转、滚轮缩放、点选卫星、放置地面站。 */
 export default function GlobeScene() {
+  // R3F 初始测量偶发竞态（StrictMode 下画布保持 300×150）：挂载后补发一次 resize
+  useEffect(() => {
+    const t = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 80)
+    const t2 = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 400)
+    return () => {
+      window.clearTimeout(t)
+      window.clearTimeout(t2)
+    }
+  }, [])
+
   const handleEarthPointer = useCallback((e: ThreeEvent<PointerEvent>) => {
     const { placementMode } = useStationStore.getState()
     if (!placementMode) return

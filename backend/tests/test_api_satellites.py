@@ -126,14 +126,15 @@ def test_import_tle(client):
 
 @pytest.fixture()
 def save_id(client):
-    """通过应用数据库直接创建一个存档，返回其 id。"""
+    """通过应用数据库直接创建一个存档（含玩家状态），返回其 id。"""
     from app.db.database import db_session
-    from app.db.models import Save
+    from app.db.models import PlayerState, Save
 
     with db_session() as db:
         s = Save(name="测试存档")
         db.add(s)
         db.flush()
+        db.add(PlayerState(save_id=s.id))
         return s.id
 
 
