@@ -46,6 +46,8 @@ class Settings(BaseSettings):
 
     # 安全
     cors_origins: tuple[str, ...] = (
+        "http://localhost:5273",
+        "http://127.0.0.1:5273",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173",

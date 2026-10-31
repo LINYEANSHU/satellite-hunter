@@ -18,6 +18,39 @@ from app.services.orbit.propagator import Propagator
 router = APIRouter(prefix="/satellites", tags=["satellites"])
 
 
+# ---------------------------------------------------------------- 批量位置（前端高频轮询）
+@router.get("/positions")
+def positions(
+    group: str = Query("stations"),
+    at: str = Query("", description="ISO UTC；默认当前 UTC"),
+    ids: str = Query("", description="逗号分隔目录号；默认整组（上限 max_n）"),
+    max_n: int = Query(2000, ge=1, le=5000),
+) -> dict:
+    """批量卫星 ECEF 位置（km），紧凑数组 [[id, x, y, z], ...]。
+
+    前端按帧在两个采样点间做直线插值以获得平滑显示；
+    真实轨道计算始终在本端完成（需求 12.1：计算与渲染解耦）。
+    """
+    data = catalog_service.get_group(group)
+    entries = data.entries
+    if ids:
+        wanted = {int(x) for x in ids.split(",") if x.strip().isdigit()}
+        entries = [e for e in entries if e.norad_id in wanted]
+    entries = entries[:max_n]
+    if not entries:
+        return {"t": 0, "items": []}
+
+    prop = Propagator(entries)
+    t = _parse_at(at)
+    pos = prop.positions_ecef(t)
+    items = []
+    for e in entries:
+        p = pos.get(e.norad_id)
+        if p and not p.error and p.r_ecef is not None:
+            items.append([e.norad_id, round(float(p.r_ecef[0]), 2), round(float(p.r_ecef[1]), 2), round(float(p.r_ecef[2]), 2)])
+    return {"t": int(t.timestamp() * 1000), "items": items}
+
+
 # ---------------------------------------------------------------- 分组状态
 @router.get("/groups")
 def list_groups() -> list[dict]:
@@ -170,6 +203,7 @@ def satellite_passes(
     alt_km: float = Query(0.0, ge=-0.5, le=10),
     hours: float = Query(48.0, gt=0, le=168),
     min_el: float = Query(5.0, ge=-5, le=85),
+    at: str = Query("", description="预测起始时刻（ISO UTC）；默认当前——支持游戏时间"),
     db: Session = Depends(get_db),
 ) -> dict:
     """单星过境预测。优先使用 station_id；否则使用传入坐标。"""
@@ -191,7 +225,7 @@ def satellite_passes(
     except KeyError:
         raise AppError(422, "ORBIT_INIT_FAILED", "该卫星轨道根数无法初始化 SGP4")
 
-    start = datetime.utcnow()
+    start = _parse_at(at) if at else datetime.utcnow()
     passes = passes_mod.predict_passes(
         sat, norad_id, s_lat, s_lon, s_alt, start, start + timedelta(hours=hours), s_min_el
     )

@@ -1,28 +1,170 @@
-import PageHeader from '../components/PageHeader'
-import WipBadge from '../components/WipBadge'
+import { useCallback, useEffect, useState } from 'react'
+import GlobeScene from '../three/GlobeScene'
+import TimeBar from '../components/TimeBar'
+import SatelliteList from '../components/SatelliteList'
+import SatelliteDetail from '../components/SatelliteDetail'
+import { useStationStore } from '../stores/stationStore'
 
-/** 3D 地球卫星探索（Phase 1 主战场）。 */
+/** 3D 地球卫星探索主页（需求 11.3 布局：左列表 / 中地球 / 右详情 / 底时间控制）。 */
 export default function ExplorerPage() {
+  const [place, setPlace] = useState<{ lat: number; lon: number } | null>(null)
+  const [name, setName] = useState('')
+  const [minEl, setMinEl] = useState(5)
+  const placementMode = useStationStore((s) => s.placementMode)
+  const setPlacementMode = useStationStore((s) => s.setPlacementMode)
+  const bootstrap = useStationStore((s) => s.bootstrap)
+
+  useEffect(() => {
+    void bootstrap()
+  }, [bootstrap])
+
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent).detail as { lat: number; lon: number }
+      setPlace(d)
+      setName('')
+    }
+    window.addEventListener('sh:place-station', h)
+    return () => window.removeEventListener('sh:place-station', h)
+  }, [])
+
+  const submitStation = useCallback(async () => {
+    if (!place) return
+    await useStationStore.getState().addStation({
+      name: name.trim() || `站-${place.lat.toFixed(1)},${place.lon.toFixed(1)}`,
+      lat: place.lat,
+      lon: place.lon,
+      alt_m: 0,
+      min_elevation_deg: minEl,
+    })
+    setPlace(null)
+    setPlacementMode(false)
+  }, [place, name, minEl, setPlacementMode])
+
   return (
-    <div className="h-full flex flex-col">
-      <PageHeader
-        title="轨道探索"
-        subtitle="3D 地球 · 真实卫星 · 过境预测"
-        right={<WipBadge phase="Phase 1" />}
-      />
-      <div className="flex-1 panel flex items-center justify-center">
-        <div className="text-center text-hud-dim">
-          <div className="text-5xl mb-3">🌍</div>
-          <p className="text-sm">3D 地球引擎将在 Phase 1 交付：</p>
-          <ul className="mt-2 text-xs space-y-1 text-left inline-block list-disc">
-            <li>CelesTrak GP 轨道数据 + SGP4 实时传播</li>
-            <li>可拖拽/缩放的三维地球（昼夜、大气）</li>
-            <li>卫星筛选、轨道线、地面投影轨迹</li>
-            <li>地面站选址与过境预测（AOS/LOS）</li>
-            <li>时间控制（1×/10×/100×/自定义）</li>
-          </ul>
+    <div className="h-full flex flex-col gap-2 min-h-0">
+      <div className="flex-1 flex gap-2 min-h-0">
+        {/* 左：目录与筛选 */}
+        <div className="w-60 shrink-0 min-h-0">
+          <SatelliteList />
+        </div>
+
+        {/* 中：3D 地球 */}
+        <div className="flex-1 relative panel overflow-hidden min-w-0">
+          <GlobeScene />
+
+          {/* 顶部悬浮状态条 */}
+          <div className="absolute top-2 left-2 right-2 flex items-center gap-2 pointer-events-none">
+            <span className="chip bg-space-900/80">🌍 拖拽旋转 · 滚轮缩放 · 点击卫星选中</span>
+            {placementMode && (
+              <span className="chip bg-hud-amber/15 border-hud-amber/50 text-hud-amber animate-pulseSoft">
+                选址模式：点击地球表面放置地面站
+              </span>
+            )}
+          </div>
+
+          {/* 右下角工具 */}
+          <div className="absolute bottom-2 right-2 flex flex-col gap-1.5">
+            <button
+              className={`btn h-8 ${placementMode ? 'btn-primary' : ''}`}
+              onClick={() => setPlacementMode(!placementMode)}
+              data-testid="place-station-btn"
+              title="在地球上选择地面站位置"
+            >
+              📡 {placementMode ? '取消选址' : '选址建站'}
+            </button>
+            <StationQuickList />
+          </div>
+        </div>
+
+        {/* 右：详情 */}
+        <div className="w-72 shrink-0 min-h-0">
+          <SatelliteDetail />
         </div>
       </div>
+
+      {/* 底：时间控制 */}
+      <TimeBar />
+
+      {/* 建站弹窗 */}
+      {place && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="place-station-modal">
+          <div className="panel w-80 p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-100">建立地面站</h3>
+            <div className="font-mono text-xs text-hud-cyan">
+              纬度 {place.lat.toFixed(3)}° · 经度 {place.lon.toFixed(3)}°
+            </div>
+            <label className="block text-xs text-hud-dim">
+              站名
+              <input
+                className="input mt-1"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="如：北京站"
+                autoFocus
+                data-testid="station-name-input"
+              />
+            </label>
+            <label className="block text-xs text-hud-dim">
+              最小可用仰角 {minEl}°
+              <input
+                type="range"
+                min={0}
+                max={30}
+                value={minEl}
+                onChange={(e) => setMinEl(Number(e.target.value))}
+                className="w-full mt-1 accent-cyan-400"
+              />
+            </label>
+            <p className="text-[10px] text-hud-dim leading-relaxed">
+              位置影响可见卫星范围、过境次数与最大仰角（需求 4.1）。虚拟站点，真实接收模式需使用实测坐标。
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button className="btn" onClick={() => setPlace(null)}>
+                取消
+              </button>
+              <button className="btn btn-primary" onClick={() => void submitStation()} data-testid="station-submit">
+                建立
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StationQuickList() {
+  const stations = useStationStore((s) => s.stations)
+  const activeId = useStationStore((s) => s.activeStationId)
+  const setActive = useStationStore((s) => s.setActive)
+  const remove = useStationStore((s) => s.removeStation)
+
+  if (!stations.length) return null
+  return (
+    <div className="panel divide-y divide-space-600/50 w-44">
+      {stations.map((st) => (
+        <div
+          key={st.id}
+          className={`px-2 py-1 flex items-center justify-between text-[11px] cursor-pointer hover:bg-space-700/50 ${
+            st.id === activeId ? 'text-hud-green' : 'text-slate-300'
+          }`}
+          onClick={() => setActive(st.id)}
+          data-testid={`station-row-${st.name}`}
+        >
+          <span className="truncate">📡 {st.name}</span>
+          <button
+            className="text-hud-dim hover:text-hud-red px-1"
+            onClick={(e) => {
+              e.stopPropagation()
+              void remove(st.id)
+            }}
+            title="删除地面站"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

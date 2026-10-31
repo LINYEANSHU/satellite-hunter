@@ -97,21 +97,19 @@ class Propagator:
         use_array = len(target) > 16 and self._array is not None
         if use_array:
             idx_map = {nid: k for k, nid in enumerate(self._ids)}
-            sel = [idx_map[nid] for nid in target]
-            n = len(sel)
-            jd_arr = np.full(n, jd)
-            fr_arr = np.full(n, fr)
-            e, r, v = self._array.sgp4(jd_arr, fr_arr)
-            e = np.atleast_1d(e).ravel()
-            r = np.atleast_2d(r).reshape(n, 3)
-            v = np.atleast_2d(v).reshape(n, 3)
-            ok = e.ravel() == 0
+            # SatrecArray.sgp4(jd_times, fr_times)：输出 (n_sats, n_times, 3)
+            e, r, v = self._array.sgp4(np.array([jd]), np.array([fr]))
+            e = np.asarray(e).reshape(len(self._ids))
+            r = np.asarray(r).reshape(len(self._ids), 3)
+            v = np.asarray(v).reshape(len(self._ids), 3)
+            ok = e == 0
             r_ecef_all, v_ecef_all = tf.teme_to_ecef(r, v, gmst)
-            for k, nid in enumerate(target):
+            for nid in target:
+                k = idx_map[nid]
                 if not ok[k]:
                     result[nid] = SatPosition(
                         norad_id=nid,
-                        error=int(e.ravel()[k]),
+                        error=int(e[k]),
                         error_msg="SGP4 传播错误（可能轨道已衰减或根数异常）",
                     )
                     continue

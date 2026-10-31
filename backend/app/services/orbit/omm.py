@@ -77,48 +77,34 @@ def _float(v, default: float = 0.0) -> float:
 
 
 def satrec_from_omm(omm: dict) -> Satrec:
-    """由 OMM 字段构建 SGP4 记录。字段缺失时抛 ValueError。"""
+    """由 OMM 字段构建 SGP4 记录。
+
+    使用 python-sgp4 官方 omm.initialize（单位换算以库实现为准，
+    已由本项目 OMM↔TLE 等价性测试交叉验证）。字段缺失时补默认值。
+    """
+    from sgp4 import omm as sgp4_omm
+
     missing = [k for k in _OMM_REQUIRED if not omm.get(k)]
     if missing:
         raise ValueError(f"OMM 缺少关键字段: {', '.join(missing)}")
 
-    epoch = parse_epoch(str(omm["EPOCH"]))
-    if epoch is None:
-        raise ValueError(f"EPOCH 无法解析: {omm['EPOCH']!r}")
-    jd, fr = jday(epoch.year, epoch.month, epoch.day, epoch.hour, epoch.minute,
-                  epoch.second + epoch.microsecond / 1e6)
-
-    norad = int(_float(omm["NORAD_CAT_ID"]))
-    no_kozai = _float(omm["MEAN_MOTION"]) / XPDOTP  # rev/day → rad/min
-    ecco = _float(omm["ECCENTRICITY"])
-    inclo = _float(omm["INCLINATION"]) * math.pi / 180.0
-    nodeo = _float(omm["RA_OF_ASC_NODE"]) * math.pi / 180.0
-    argpo = _float(omm["ARG_OF_PERICENTER"]) * math.pi / 180.0
-    mo = _float(omm["MEAN_ANOMALY"]) * math.pi / 180.0
-    bstar = _float(omm.get("BSTAR"))
-    ndot = _float(omm.get("MEAN_MOTION_DOT")) / (XPDOTP * 1440.0)
-    nddot = _float(omm.get("MEAN_MOTION_DDOT")) / (XPDOTP * 1440.0 * 1440.0)
+    fields = dict(omm)
+    # 库要求的部分元数据字段在 CelesTrak JSON 中可能缺失，补齐默认值
+    fields.setdefault("CLASSIFICATION_TYPE", "U")
+    fields.setdefault("OBJECT_ID", "00000A")
+    fields.setdefault("EPHEMERIS_TYPE", fields.get("EPHEMERIS_TYPE", "0") or "0")
+    fields.setdefault("ELEMENT_SET_NO", "0")
+    fields.setdefault("REV_AT_EPOCH", "0")
+    # 库按 '%Y-%m-%dT%H:%M:%S.%f' 解析 EPOCH，统一为该格式
+    ep = str(fields.get("EPOCH", "")).strip().rstrip("Z")
+    if "." not in ep:
+        ep += ".000000"
+    fields["EPOCH"] = ep
 
     sat = Satrec()
-    # sgp4init 的 epoch 参数约定：自 1949-12-31 00:00 UT 起的天数
-    # （库内部会加回 2433281.5 得到儒略日，见 twoline2rv 行为）
-    sat.sgp4init(
-        WGS72,          # 重力模型（与 twoline2rv 默认一致）
-        "i",            # 改进模式
-        norad,
-        (jd + fr) - 2433281.5,
-        bstar,
-        ndot,
-        nddot,
-        ecco,
-        argpo,
-        inclo,
-        mo,
-        no_kozai,
-        nodeo,
-    )
+    sgp4_omm.initialize(sat, fields, gravconst=WGS72)
     if sat.error:
-        raise ValueError(f"SGP4 初始化错误码 {sat.error} (NORAD {norad})")
+        raise ValueError(f"SGP4 初始化错误码 {sat.error} (NORAD {fields['NORAD_CAT_ID']})")
     return sat
 
 

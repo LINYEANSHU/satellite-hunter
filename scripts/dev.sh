@@ -29,10 +29,10 @@ echo "启动后端 (http://localhost:8000)..."
 "$PYBIN" -m uvicorn app.main:app --reload --port 8000 &
 BACK_PID=$!
 
-echo "启动前端 (http://localhost:5173)..."
+echo "启动前端 (http://localhost:5273)..."
 (cd frontend && npm run dev) &
 FRONT_PID=$!
 
 trap 'kill $BACK_PID $FRONT_PID 2>/dev/null' EXIT
-echo "浏览器访问 http://localhost:5173 （Ctrl+C 停止全部服务）"
+echo "浏览器访问 http://localhost:5273 （Ctrl+C 停止全部服务）"
 wait

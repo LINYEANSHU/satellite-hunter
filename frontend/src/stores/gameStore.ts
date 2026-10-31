@@ -29,41 +29,40 @@ export const useGameStore = create<GameStore>((set) => ({
   reset: () => set(initial),
 }))
 
-/** 模拟时钟：UTC 毫秒 + 时间倍率。Phase 1 由时间控制面板操作。 */
+/**
+ * 模拟时钟（锚点推导式）。
+ *
+ * simTime = paused ? anchorSim : anchorSim + (Date.now() - anchorReal) × scale
+ *
+ * 不依赖任何计时器推进：Date.now() 在标签页节流/遮挡下依然前进，
+ * 时钟永远不会"冻结"；UI 只是按需重渲染。
+ */
 interface TimeStore {
-  /** 当前仿真时间 (ms since epoch, UTC) */
-  simTime: number
+  anchorReal: number
+  anchorSim: number
   paused: boolean
   scale: number
-  setSimTime: (t: number) => void
+  /** 当前仿真时间 (ms since epoch, UTC) */
+  now: () => number
   setPaused: (p: boolean) => void
   setScale: (s: number) => void
+  jumpTo: (ms: number) => void
+  resetToReal: () => void
 }
 
-export const useTimeStore = create<TimeStore>((set) => ({
-  simTime: Date.now(),
+export const useTimeStore = create<TimeStore>((set, get) => ({
+  anchorReal: Date.now(),
+  anchorSim: Date.now(),
   paused: false,
   scale: 1,
-  setSimTime: (t) => set({ simTime: t }),
-  setPaused: (p) => set({ paused: p }),
-  setScale: (s) => set({ scale: s }),
+  now: () => {
+    const { paused, anchorSim, anchorReal, scale } = get()
+    return paused ? anchorSim : anchorSim + (Date.now() - anchorReal) * scale
+  },
+  setPaused: (p) =>
+    set((st) => (p === st.paused ? st : { anchorSim: st.now(), anchorReal: Date.now(), paused: p })),
+  setScale: (s) =>
+    set((st) => (s === st.scale ? st : { anchorSim: st.now(), anchorReal: Date.now(), scale: s, paused: false })),
+  jumpTo: (ms) => set({ anchorSim: ms, anchorReal: Date.now() }),
+  resetToReal: () => set({ anchorSim: Date.now(), anchorReal: Date.now(), scale: 1, paused: false }),
 }))
-
-// 全局时钟推进器：应用启动一次，所有订阅者共享
-let tickerStarted = false
-export function startTimeTicker() {
-  if (tickerStarted) return
-  tickerStarted = true
-  let last = performance.now()
-  const tick = () => {
-    const now = performance.now()
-    const dt = now - last
-    last = now
-    const { paused, scale, simTime } = useTimeStore.getState()
-    if (!paused) {
-      useTimeStore.setState({ simTime: simTime + dt * scale })
-    }
-    requestAnimationFrame(tick)
-  }
-  requestAnimationFrame(tick)
-}

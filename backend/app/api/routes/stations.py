@@ -88,6 +88,7 @@ def station_passes(
     hours: float = Query(48.0, gt=0, le=168),
     min_el: float | None = Query(None, ge=-5, le=85),
     limit: int = Query(100, le=500),
+    at: str = Query("", description="预测起始时刻（ISO UTC）；默认当前——支持游戏时间"),
     db: Session = Depends(get_db),
 ) -> dict:
     """地面站视野内一批卫星的未来过境（按 AOS 排序）。
@@ -102,7 +103,11 @@ def station_passes(
     entries = data.entries[:500]
     prop = Propagator(entries)
 
-    start = datetime.utcnow()
+    start = (
+        datetime.fromisoformat(at.replace("Z", "+00:00")).replace(tzinfo=None)
+        if at
+        else datetime.utcnow()
+    )
     end = start + timedelta(hours=hours)
     use_min_el = min_el if min_el is not None else s.min_elevation_deg
 

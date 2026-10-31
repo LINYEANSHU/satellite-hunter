@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { api, type Capabilities } from './api/client'
-import { startTimeTicker, useGameStore } from './stores/gameStore'
+import { useGameStore } from './stores/gameStore'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
 import StationPage from './pages/StationPage'
@@ -30,7 +30,6 @@ function Shell() {
   const saveName = useGameStore((s) => s.saveName)
 
   useEffect(() => {
-    startTimeTicker()
     api
       .capabilities()
       .then(setCaps)

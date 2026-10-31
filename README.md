@@ -26,9 +26,9 @@ Git Bash / Linux / macOS：
 ./scripts/dev.sh
 ```
 
-脚本会自动：创建 Python 虚拟环境 → 安装依赖 → 安装前端依赖 → 启动后端 (http://localhost:8000) 与前端 (http://localhost:5173)。
+脚本会自动：创建 Python 虚拟环境 → 安装依赖 → 安装前端依赖 → 启动后端 (http://localhost:8000) 与前端 (http://localhost:5273)。
 
-浏览器访问 **http://localhost:5173**。
+浏览器访问 **http://localhost:5273**。
 
 ### 手动启动
 
