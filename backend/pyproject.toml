@@ -1,0 +1,16 @@
+[project]
+name = "satellite-hunter-backend"
+version = "0.1.0"
+description = "Satellite Hunter: Ground Station - backend services"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
