@@ -167,6 +167,101 @@ export const CATEGORY_LABELS: Record<string, string> = {
   storage: '存储',
 }
 
+// ---------------------------------------------------------------- 信号实验室
+export interface RecordingInfo {
+  id: string
+  save_id: string
+  filename: string
+  size_bytes: number
+  format: string
+  sample_rate_hz: number
+  center_frequency_hz: number
+  satellite_id: number | null
+  source: string
+  notes: string
+  created_at: string | null
+  samples?: number
+  duration_s?: number | null
+  error?: string
+}
+
+export const uploadRecording = async (
+  saveId: string,
+  file: File,
+  meta: { format: string; sample_rate_hz: number; center_frequency_hz: number; satellite_id?: number | null; notes?: string },
+): Promise<RecordingInfo> => {
+  const fd = new FormData()
+  fd.append('save_id', saveId)
+  fd.append('file', file)
+  fd.append('format', meta.format)
+  fd.append('sample_rate_hz', String(meta.sample_rate_hz || 0))
+  fd.append('center_frequency_hz', String(meta.center_frequency_hz || 0))
+  if (meta.satellite_id) fd.append('satellite_id', String(meta.satellite_id))
+  fd.append('notes', meta.notes ?? '')
+  const resp = await fetch('/api/recordings/import', { method: 'POST', body: fd })
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => null)
+    throw new Error(body?.error?.message ?? `HTTP ${resp.status}`)
+  }
+  return resp.json()
+}
+
+export const signalApi = {
+  detail: (id: string) => request<RecordingInfo>(`/api/recordings/${id}`),
+  list: (saveId: string) => request<RecordingInfo[]>(`/api/recordings?save_id=${saveId}`),
+  remove: (id: string) => request<{ deleted: string }>(`/api/recordings/${id}`, { method: 'DELETE' }),
+  stats: (id: string, offset = 0, n = 65536) =>
+    request<Record<string, number>>(`/api/recordings/${id}/stats?offset=${offset}&n=${n}`),
+  spectrum: (id: string, offset = 0, n = 65536, fft = 1024, avg = 8) =>
+    request<{ fft_size: number; db: number[]; freq_span_hz: number | null; center_frequency_hz: number }>(
+      `/api/recordings/${id}/spectrum?offset=${offset}&n=${n}&fft=${fft}&avg=${avg}`,
+    ),
+  waterfall: (id: string, rows = 128, fft = 256, t0 = 0, t1 = 1) =>
+    request<{ rows: number; fft_size: number; db: number[][]; db_min: number; db_max: number; freq_span_hz: number | null }>(
+      `/api/recordings/${id}/waterfall?rows=${rows}&fft=${fft}&t0=${t0}&t1=${t1}`,
+    ),
+  constellation: (id: string, offset = 0, n = 2000) =>
+    request<{ points: [number, number][] }>(`/api/recordings/${id}/constellation?offset=${offset}&n=${n}`),
+  waveform: (id: string, offset = 0, n = 2000) =>
+    request<{ i: number[]; q: number[] }>(`/api/recordings/${id}/waveform?offset=${offset}&n=${n}`),
+
+  satdumpStatus: () =>
+    request<{ installed: boolean; version: string | null; source: string | null; note: string; pipelines_count?: number; pipelines_note?: string }>(
+      '/api/satdump/status',
+    ),
+  satdumpPipelines: () =>
+    request<{ pipelines: { name: string; desc: string }[]; note: string }>('/api/satdump/pipelines', { method: 'POST' }),
+  satdumpCreateJob: (body: {
+    save_id: string
+    recording_id: string
+    pipeline: string
+    samplerate?: number
+    frequency?: number
+    baseband_format?: string
+    sat_name?: string
+  }) => request<SatdumpJobView>('/api/satdump/jobs', { method: 'POST', body: JSON.stringify(body) }),
+  satdumpJobs: (saveId: string) => request<SatdumpJobView[]>(`/api/satdump/jobs?save_id=${saveId}`),
+  satdumpJob: (id: string) => request<SatdumpJobView>(`/api/satdump/jobs/${id}`),
+  satdumpLog: (id: string) => request<{ log: string }>(`/api/satdump/jobs/${id}/log`),
+  satdumpCancel: (id: string) => request<{ cancelled: boolean }>(`/api/satdump/jobs/${id}/cancel`, { method: 'POST' }),
+  satdumpCollect: (id: string, body: { save_id: string; title: string; notes?: string; satellite_id?: number | null }) =>
+    request<{ id: string }>(`/api/satdump/jobs/${id}/collect`, { method: 'POST', body: JSON.stringify(body) }),
+}
+
+export interface SatdumpJobView {
+  id: string
+  recording_id: string
+  pipeline: string
+  params: Record<string, unknown>
+  status: string
+  progress: number
+  error: string
+  result_files: { path: string; size: number }[]
+  log_path: string | null
+  output_dir: string | null
+  created_at: string | null
+}
+
 export const MISSION_TYPE_LABELS: Record<string, string> = {
   tutorial: '新手观测',
   track: '卫星追踪',
