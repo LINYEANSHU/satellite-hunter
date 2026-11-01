@@ -5,6 +5,7 @@ import Earth from './Earth'
 import SatelliteLayer from './SatelliteLayer'
 import OrbitPath from './OrbitPath'
 import StationLayer from './StationLayer'
+import FrameDriver from './FrameDriver'
 import { sceneToLatLon } from './coords'
 import { useCatalogStore } from '../stores/catalogStore'
 import { useStationStore } from '../stores/stationStore'
@@ -38,6 +39,7 @@ export default function GlobeScene() {
   return (
     <Canvas
       camera={{ position: [0, 1.6, 3.2], fov: 45, near: 0.01, far: 100 }}
+      frameloop="never"
       gl={{ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true }}
       dpr={[1, 2]}
       data-testid="globe-canvas"
@@ -47,6 +49,7 @@ export default function GlobeScene() {
       <directionalLight position={[5, 3, 5]} intensity={1.2} />
 
       <Suspense fallback={null}>
+        <FrameDriver hz={30} />
         <Earth onPointerDown={handleEarthPointer} />
         <SatelliteLayer onPick={handleSatPick} />
         <OrbitPath />

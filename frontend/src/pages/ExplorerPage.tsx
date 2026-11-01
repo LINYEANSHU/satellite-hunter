@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useCallback, useEffect, useState } from 'react'
 import GlobeScene from '../three/GlobeScene'
 import SatelliteList from '../components/SatelliteList'
@@ -42,7 +43,7 @@ export default function ExplorerPage() {
 
   return (
     <div className="h-full flex flex-col gap-2 min-h-0">
-      <div className="flex-1 flex gap-2 min-h-0">
+      <div className="flex-1 flex gap-2 min-h-0 rise">
         {/* 左：目录与筛选 */}
         <div className="w-60 shrink-0 min-h-0">
           <SatelliteList />
@@ -54,9 +55,9 @@ export default function ExplorerPage() {
 
           {/* 顶部悬浮状态条 */}
           <div className="absolute top-2 left-2 right-2 flex items-center gap-2 pointer-events-none">
-            <span className="chip bg-space-900/80">🌍 拖拽旋转 · 滚轮缩放 · 点击卫星选中</span>
+            <span className="tag bg-ground-1/90">拖拽旋转 · 滚轮缩放 · 点击卫星选中</span>
             {placementMode && (
-              <span className="chip bg-hud-amber/15 border-hud-amber/50 text-hud-amber animate-pulseSoft">
+              <span className="chip bg-warn/10 border-warn/50 text-warn animate-pulseSoft">
                 选址模式：点击地球表面放置地面站
               </span>
             )}
@@ -70,7 +71,7 @@ export default function ExplorerPage() {
               data-testid="place-station-btn"
               title="在地球上选择地面站位置"
             >
-              📡 {placementMode ? '取消选址' : '选址建站'}
+              {placementMode ? '取消选址' : '选址建站'}
             </button>
             <StationQuickList />
           </div>
@@ -86,11 +87,11 @@ export default function ExplorerPage() {
       {place && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="place-station-modal">
           <div className="panel w-80 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-100">建立地面站</h3>
-            <div className="font-mono text-xs text-hud-cyan">
+            <h3 className="text-sm font-semibold text-ink">建立地面站</h3>
+            <div className="data text-xs text-signal">
               纬度 {place.lat.toFixed(3)}° · 经度 {place.lon.toFixed(3)}°
             </div>
-            <label className="block text-xs text-hud-dim">
+            <label className="block text-xs text-ink-dim">
               站名
               <input
                 className="input mt-1"
@@ -101,7 +102,7 @@ export default function ExplorerPage() {
                 data-testid="station-name-input"
               />
             </label>
-            <label className="block text-xs text-hud-dim">
+            <label className="block text-xs text-ink-dim">
               最小可用仰角 {minEl}°
               <input
                 type="range"
@@ -112,7 +113,7 @@ export default function ExplorerPage() {
                 className="w-full mt-1 accent-cyan-400"
               />
             </label>
-            <p className="text-[10px] text-hud-dim leading-relaxed">
+            <p className="text-[12px] text-ink-dim leading-relaxed">
               位置影响可见卫星范围、过境次数与最大仰角（需求 4.1）。虚拟站点，真实接收模式需使用实测坐标。
             </p>
             <div className="flex gap-2 justify-end">
@@ -138,26 +139,26 @@ function StationQuickList() {
 
   if (!stations.length) return null
   return (
-    <div className="panel divide-y divide-space-600/50 w-44">
+    <div className="panel  w-44">
       {stations.map((st) => (
         <div
           key={st.id}
-          className={`px-2 py-1 flex items-center justify-between text-[11px] cursor-pointer hover:bg-space-700/50 ${
-            st.id === activeId ? 'text-hud-green' : 'text-slate-300'
+          className={`px-2 py-1 flex items-center justify-between text-[13px] cursor-pointer hover:bg-ground-2 ${
+            st.id === activeId ? 'text-ok' : 'text-ink'
           }`}
           onClick={() => setActive(st.id)}
           data-testid={`station-row-${st.name}`}
         >
-          <span className="truncate">📡 {st.name}</span>
+          <span className="truncate">{st.name}</span>
           <button
-            className="text-hud-dim hover:text-hud-red px-1"
+            className="text-ink-dim hover:text-danger px-1"
             onClick={(e) => {
               e.stopPropagation()
               void remove(st.id)
             }}
             title="删除地面站"
           >
-            ✕
+            <Icon name="close" size={13} />
           </button>
         </div>
       ))}

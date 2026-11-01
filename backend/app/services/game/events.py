@@ -54,6 +54,41 @@ RESEARCH = {
         "requires": ["signal_processing"],
         "effect": {"scheduler_plus": 4},
     },
+    "deep_space_network": {
+        "name": "深空链路预算",
+        "desc": "全站接收链路 SNR 再 +1.5 dB（低噪工艺）",
+        "cost_rp": 350,
+        "requires": ["signal_processing"],
+        "effect": {"snr_bonus_db": 1.5},
+    },
+    "data_compression": {
+        "name": "数据压缩流水线",
+        "desc": "任务数据产出再 +15%",
+        "cost_rp": 250,
+        "requires": ["signal_processing"],
+        "effect": {"data_bonus": 0.15},
+    },
+    "automation_v2": {
+        "name": "调度器 v2",
+        "desc": "自动调度建议数量上限再 +6",
+        "cost_rp": 500,
+        "requires": ["constellation_awareness"],
+        "effect": {"scheduler_plus": 6},
+    },
+    "field_service": {
+        "name": "现场维护协议",
+        "desc": "设备维修费用减半",
+        "cost_rp": 200,
+        "requires": ["predictive_maintenance"],
+        "effect": {"repair_half": 1},
+    },
+    "master_operator": {
+        "name": "资深运营体系",
+        "desc": "任务奖励 Credits 再 +15%",
+        "cost_rp": 800,
+        "requires": ["ops_efficiency", "predictive_maintenance"],
+        "effect": {"credit_bonus": 0.15},
+    },
 }
 
 
@@ -187,6 +222,8 @@ def repair_equipment(db: Session, save_id: str, equipment_id: str) -> dict:
         raise AppError(404, "EQUIPMENT_NOT_FOUND", "设备不存在")
     d = find_def(eq.catalog_id) or {}
     cost = round((d.get("price", 100) or 100) * 0.2 + 50)
+    if player_effects(db, save_id).get("repair_half", 0) >= 1:
+        cost = round(cost * 0.5)
     player = db.get(PlayerState, save_id)
     if player is None:
         raise AppError(404, "SAVE_NOT_FOUND", "存档不存在")

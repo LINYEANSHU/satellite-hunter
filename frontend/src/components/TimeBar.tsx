@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTimeStore } from '../stores/gameStore'
+import Icon from './Icon'
 
 const SPEEDS = [1, 10, 60, 300, 1000]
 
@@ -13,9 +14,7 @@ function fmtLocal(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-/** 底部时间控制条：现实时间 / 暂停 / 1×-1000× / 回到当前（需求 3.4）。
-
-  时钟为锚点推导式（见 gameStore），此处仅按 250ms 触发重渲染。 */
+/** 全局时间控制：现实时间 / 暂停 / 1×-1000× / 自定义时刻 / 回到现在。快捷键：空格、1-4、N。 */
 export default function TimeBar() {
   const { paused, scale, setPaused, setScale, resetToReal, jumpTo, now } = useTimeStore()
   const [, setTick] = useState(0)
@@ -30,33 +29,31 @@ export default function TimeBar() {
   const isReal = Math.abs(offsetS) < 3 && scale === 1 && !paused
 
   return (
-    <div className="flex items-center gap-3 px-3 h-11 border-t border-space-600/60 bg-space-900/90 text-xs">
+    <div className="flex items-center gap-3 px-3 h-12 bg-ground-1 text-[13px]">
       <button
-        className={`btn h-7 px-2 ${paused ? 'btn-primary' : ''}`}
+        className="btn w-9 px-0"
         onClick={() => setPaused(!paused)}
-        data-testid="time-pause"
-        title={paused ? '继续' : '暂停'}
+        title={paused ? '继续（空格）' : '暂停（空格）'}
       >
-        {paused ? '▶' : '❚❚'}
+        <Icon name={paused ? 'play' : 'pause'} size={14} />
       </button>
 
       <div className="flex items-center gap-1">
         {SPEEDS.map((s) => (
           <button
             key={s}
-            className={`btn h-7 px-2 font-mono ${scale === s && !paused ? 'btn-primary' : ''}`}
+            className={`btn w-11 px-0 ${scale === s && !paused ? 'btn-primary' : ''}`}
             onClick={() => setScale(s)}
-            data-testid={`speed-${s}x`}
+            title={`${s} 倍时间流速（快捷键 ${SPEEDS.indexOf(s) + 1}）`}
           >
             {s}×
           </button>
         ))}
       </div>
 
-      {/* 自定义时刻跳转 */}
       <input
         type="datetime-local"
-        className="input !w-44 !h-7 text-[11px]"
+        className="input !w-44 !h-8 text-[12px]"
         onChange={(e) => {
           if (e.target.value) jumpTo(new Date(e.target.value).getTime())
         }}
@@ -65,24 +62,30 @@ export default function TimeBar() {
 
       <div className="flex-1" />
 
-      <div className="font-mono text-right leading-tight">
-        <div className="text-hud-cyan" data-testid="time-utc">
-          {fmtUTC(simTime)} <span className="text-hud-dim">UTC</span>
+      <div className="text-right leading-tight">
+        <div className="data text-signal text-[13px]" data-testid="time-utc">
+          {fmtUTC(simTime)} UTC
         </div>
-        <div className="text-hud-dim text-[10px]">本地 {fmtLocal(simTime)}</div>
+        <div className="text-ink-dim text-[11px]">本地 {fmtLocal(simTime)}</div>
       </div>
 
-      <div className={`chip ${isReal ? '' : 'text-hud-amber border-hud-amber/40'}`} data-testid="time-mode">
+      <div
+        className={`text-[12px] px-2 py-1 rounded ${
+          isReal ? 'text-ink-dim' : 'bg-warn/10 text-warn'
+        }`}
+        data-testid="time-mode"
+      >
         {isReal
           ? '现实时间'
           : paused
-            ? `已暂停 (偏移 ${offsetS > 0 ? '+' : ''}${Math.round(offsetS / 60)}min)`
-            : `游戏时间 ${scale}× (偏移 ${offsetS > 0 ? '+' : ''}${Math.round(offsetS / 60)}min)`}
+            ? `已暂停 · 偏移 ${offsetS > 0 ? '+' : ''}${Math.round(offsetS / 60)} 分钟`
+            : `游戏时间 ${scale}× · 偏移 ${offsetS > 0 ? '+' : ''}${Math.round(offsetS / 60)} 分钟`}
       </div>
 
       {!isReal && (
-        <button className="btn h-7 px-2" onClick={resetToReal} title="回到当前现实时间">
-          ⏱ 现在
+        <button className="btn" onClick={resetToReal} title="回到当前现实时间（N）">
+          <Icon name="clock" size={13} />
+          现在
         </button>
       )}
     </div>

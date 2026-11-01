@@ -9,49 +9,146 @@
     height: 100%;
   }
   body {
-    @apply bg-space-950 text-slate-200 font-display antialiased;
+    @apply bg-ground-0 text-ink font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  ::selection {
+    background: rgba(63, 214, 232, 0.25);
   }
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-space-600 rounded;
+    @apply bg-ground-3 rounded-md;
   }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ground-4;
+  }
+  input,
+  select,
+  textarea {
+    @apply bg-ground-2 text-ink;
+  }
+  /* 数据读数一律用等宽数字类 .data；正文数字不强制 */
 }
 
 @layer components {
+  /* 面板：明度阶梯分层，无外框无阴影（浮层除外） */
   .panel {
-    @apply bg-space-850/90 border border-space-600/60 rounded-lg shadow-panel;
+    @apply bg-ground-1 rounded-lg;
+  }
+  .panel-2 {
+    @apply bg-ground-2 rounded-lg;
   }
   .panel-header {
-    @apply flex items-center justify-between px-3 h-9 border-b border-space-600/60
-      text-[11px] uppercase tracking-[0.18em] text-hud-dim font-semibold;
+    @apply flex items-center justify-between px-3.5 h-10 text-[13px] font-medium text-ink
+      bg-ground-2 rounded-t-lg;
   }
+  .panel-header-plain {
+    @apply flex items-center justify-between px-3.5 h-10 text-[13px] font-medium text-ink-dim;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded
-      border border-space-500/70 bg-space-800 text-sm text-slate-200
-      hover:bg-space-700 hover:border-hud-blue/50 active:translate-y-px
-      transition-colors select-none disabled:opacity-40 disabled:pointer-events-none;
+      bg-ground-3 text-[13px] text-ink font-medium
+      hover:bg-ground-4 active:translate-y-px
+      transition-[background-color,transform] duration-100 select-none
+      disabled:opacity-40 disabled:pointer-events-none;
   }
   .btn-primary {
-    @apply border-hud-cyan/50 bg-hud-cyan/10 text-hud-cyan hover:bg-hud-cyan/20 hover:border-hud-cyan;
+    @apply bg-signal/15 text-signal hover:bg-signal/25;
+  }
+  .btn-solid {
+    @apply bg-signal text-ground-0 hover:brightness-110;
   }
   .btn-danger {
-    @apply border-hud-red/40 text-hud-red hover:bg-hud-red/10 hover:border-hud-red;
+    @apply text-danger hover:bg-danger/10;
   }
+
   .input {
-    @apply h-8 px-2 rounded bg-space-900 border border-space-500/70 text-sm
-      focus:outline-none focus:border-hud-cyan/60 w-full;
+    @apply h-8 px-2.5 rounded bg-ground-2 border border-ground-4 text-[13px]
+      focus:outline-none focus:border-signal/60 w-full placeholder:text-ink-faint;
   }
-  .chip {
-    @apply inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-mono
-      border border-space-500/60 bg-space-800/80 text-hud-dim;
+
+  /* 状态点 + 文本：语义色 */
+  .status-dot {
+    @apply inline-block w-1.5 h-1.5 rounded-full align-middle;
   }
-  .stat-num {
-    @apply font-mono text-hud-cyan tabular-nums;
+  .chip,
+  .tag {
+    @apply inline-flex items-center gap-1 px-2 h-6 rounded text-[13px] leading-none
+      bg-ground-3 text-ink-dim;
+  }
+
+  /* 数据对齐：文本字面 + 表格数字（行内统计） */
+  .data {
+    @apply tabular-nums;
+  }
+  /* 真实遥测读数（时间/坐标/信号）：等宽 */
+  .mono {
+    @apply font-data tabular-nums;
+  }
+  .readout {
+    @apply font-data tabular-nums text-signal;
+  }
+
+  /* 行选择 */
+  .row {
+    @apply w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-ground-2 transition-colors;
+  }
+  .row-selected {
+    @apply bg-ground-2 border-l-2 border-l-signal;
+  }
+}
+
+@layer utilities {
+  /* 签名动效：信号扫描线（选中面板顶部） */
+  .scanline::after {
+    content: '';
+    /* taste-skill-ignore: 签名动效信号扫描线 */
+    @apply absolute left-0 right-0 top-0 h-0.5 bg-signal/70;
+    animation: scan 2.4s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0%,
+    100% {
+      transform: translateX(-30%);
+      opacity: 0.4;
+    }
+    50% {
+      transform: translateX(30%);
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scanline::after {
+      animation: none;
+      opacity: 0.5;
+    }
+  }
+
+  /* 入场阶梯（配合 .rise） */
+  .rise {
+    animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rise {
+      animation: none;
+    }
   }
 }

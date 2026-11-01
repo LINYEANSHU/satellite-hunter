@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrameCallback } from './FrameDriver'
 import { BufferGeometry, Float32BufferAttribute, Mesh } from 'three'
 import { orbitApi, type TrackPoint } from '../api/orbit'
 import { useCatalogStore } from '../stores/catalogStore'
@@ -29,7 +29,7 @@ export default function OrbitPath() {
   }, [selectedId])
 
   // 时间跳远后刷新轨道线
-  useFrame(() => {
+  useFrameCallback(() => {
     if (selectedId && points.length && Math.abs(useTimeStore.getState().now() - center) > 40 * 60 * 1000) {
       const sid = selectedId
       const simT = useTimeStore.getState().now()

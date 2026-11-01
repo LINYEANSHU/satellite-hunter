@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 const GRID = '#1a2536'
 const AXIS = '#5b6b82'
 const CYAN = '#22d3ee'
-const VIOLET = '#a78bfa'
+const VIOLET = '#fbbf24'
 const AMBER = '#fbbf24'
 
 /** 功率谱折线图（dB） */

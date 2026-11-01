@@ -34,7 +34,7 @@ export default function SettingsPage() {
         }
       />
 
-      {error && <div className="panel p-3 mb-3 text-hud-red text-sm">{error}</div>}
+      {error && <div className="panel p-3 mb-3 text-danger text-sm">{error}</div>}
 
       {caps && (
         <div className="grid grid-cols-2 gap-3 max-w-4xl">
@@ -55,13 +55,13 @@ export default function SettingsPage() {
               <Row
                 k="状态"
                 v={caps.satdump.installed ? '已安装' : '未安装'}
-                cls={caps.satdump.installed ? 'text-hud-green' : 'text-hud-amber'}
+                cls={caps.satdump.installed ? 'text-ok' : 'text-warn'}
               />
               <Row k="版本" v={caps.satdump.version ?? '—'} />
               <Row k="来源" v={caps.satdump.source ?? '—'} />
               {caps.satdump.installed && <Row k="路径" v={caps.satdump.bin ?? '—'} mono />}
               {!caps.satdump.installed && (
-                <p className="text-xs text-hud-dim leading-relaxed pt-1 border-t border-space-600/50 mt-1">
+                <p className="text-xs text-ink-dim leading-relaxed pt-1  mt-1">
                   {caps.satdump.note}
                 </p>
               )}
@@ -95,8 +95,8 @@ export default function SettingsPage() {
 function Row({ k, v, cls, mono }: { k: string; v: string; cls?: string; mono?: boolean }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-hud-dim shrink-0">{k}</span>
-      <span className={`${mono ? 'font-mono text-xs break-all text-right' : ''} ${cls ?? 'text-slate-300'}`}>{v}</span>
+      <span className="text-ink-dim shrink-0">{k}</span>
+      <span className={`${mono ? 'data text-xs break-all text-right' : ''} ${cls ?? 'text-ink'}`}>{v}</span>
     </div>
   )
 }

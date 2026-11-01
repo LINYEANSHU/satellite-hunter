@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -205,7 +206,7 @@ export default function SignalLabPage() {
 
   if (!saveId) {
     return (
-      <div className="h-full panel flex items-center justify-center text-sm text-hud-dim">
+      <div className="h-full panel flex items-center justify-center text-sm text-ink-dim">
         未进入存档
         <button className="btn ml-3" onClick={() => nav('/')}>
           返回主菜单
@@ -221,61 +222,61 @@ export default function SignalLabPage() {
         subtitle="频谱 · 瀑布图 · IQ 分析 · SatDump 离线解码"
         right={
           selected && (
-            <span className="chip text-hud-amber border-hud-amber/40">
+            <span className="chip text-warn border-warn/40">
               {selected.source === 'RECORDED_IQ' ? 'RECORDED_IQ' : selected.source}
             </span>
           )
         }
       />
 
-      {err && <div className="panel px-3 py-2 text-xs text-hud-red">{err}</div>}
+      {err && <div className="panel px-3 py-2 text-xs text-danger">{err}</div>}
 
       <div className="flex gap-3 flex-1 min-h-0">
         {/* 左：录波列表 + 导入 */}
         <div className="w-64 shrink-0 panel flex flex-col min-h-0">
           <div className="panel-header">
             <span>录波文件</span>
-            <span className="font-mono normal-case">{recordings.length}</span>
+            <span className="data normal-case">{recordings.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            {recordings.length === 0 && <div className="p-3 text-xs text-hud-dim">导入一个 IQ 录波开始分析。</div>}
+            {recordings.length === 0 && <div className="p-3 text-xs text-ink-dim">导入一个 IQ 录波开始分析。</div>}
             {recordings.map((r) => (
               <button
                 key={r.id}
-                className={`w-full text-left px-2.5 py-1.5 border-b border-space-700/40 hover:bg-space-700/40 ${
-                  selected?.id === r.id ? 'bg-hud-cyan/10 border-l-2 border-l-hud-cyan' : ''
+                className={`w-full text-left px-2.5 py-1.5  hover:bg-ground-2 ${
+                  selected?.id === r.id ? 'bg-signal/10 border-l-2 border-l-signal' : ''
                 }`}
                 onClick={() => {
                   setSelected(r)
                   setPosition(0)
                 }}
               >
-                <div className="text-[12px] text-slate-300 truncate">{r.filename}</div>
-                <div className="text-[10px] font-mono text-hud-dim">
+                <div className="text-[12px] text-ink truncate">{r.filename}</div>
+                <div className="text-[12px] data text-ink-dim">
                   {r.format} · {(r.size_bytes / 1024).toFixed(0)} KB
                   {r.sample_rate_hz ? ` · ${(r.sample_rate_hz / 1000).toFixed(0)} kS/s` : ''}
                 </div>
               </button>
             ))}
           </div>
-          <div className="p-2.5 border-t border-space-600/50 space-y-1.5">
+          <div className="p-2.5  space-y-1.5">
             <input
               type="file"
-              className="input !h-7 text-[10px] file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-space-600 file:text-slate-200"
+              className="input !h-7 text-[12px] file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-ground-3 file:text-ink"
               onChange={(e) => e.target.files?.[0] && void onUpload(e.target.files[0])}
               disabled={busy}
               data-testid="recording-file-input"
             />
             <div className="grid grid-cols-3 gap-1">
-              <select className="input !h-7 !text-[10px] px-1" value={fmt} onChange={(e) => setFmt(e.target.value)}>
+              <select className="input !h-7 !text-[12px] px-1" value={fmt} onChange={(e) => setFmt(e.target.value)}>
                 {FORMATS.map(([v, l]) => (
                   <option key={v} value={v}>
                     {l}
                   </option>
                 ))}
               </select>
-              <input className="input !h-7 !text-[10px]" placeholder="采样率" value={srate} onChange={(e) => setSrate(e.target.value)} />
-              <input className="input !h-7 !text-[10px]" placeholder="中心Hz" value={cfreq} onChange={(e) => setCfreq(e.target.value)} />
+              <input className="input !h-7 !text-[12px]" placeholder="采样率" value={srate} onChange={(e) => setSrate(e.target.value)} />
+              <input className="input !h-7 !text-[12px]" placeholder="中心Hz" value={cfreq} onChange={(e) => setCfreq(e.target.value)} />
             </div>
           </div>
         </div>
@@ -294,14 +295,14 @@ export default function SignalLabPage() {
               ).map(([k, label]) => (
                 <button
                   key={k}
-                  className={`chip cursor-pointer ${tab === k ? 'text-hud-cyan border-hud-cyan/50' : 'hover:text-slate-300'}`}
+                  className={`chip cursor-pointer ${tab === k ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
                   onClick={() => setTab(k)}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <span className="font-mono normal-case text-[10px]">
+            <span className="data normal-case text-[12px]">
               {selected
                 ? `偏移 ${(((selected.samples ?? 0) * position) | 0).toLocaleString()} 采样 (${(position * 100).toFixed(0)}%)`
                 : '未选择录波'}
@@ -309,9 +310,9 @@ export default function SignalLabPage() {
           </div>
 
           {!selected ? (
-            <div className="flex-1 flex items-center justify-center text-hud-dim text-sm">
+            <div className="flex-1 flex items-center justify-center text-ink-dim text-sm">
               <div className="text-center">
-                <div className="text-4xl mb-2">📈</div>
+                <Icon name="wave" size={34} className="text-ink-faint mx-auto mb-2" />
                 选择或导入录波文件
               </div>
             </div>
@@ -340,7 +341,7 @@ export default function SignalLabPage() {
                   disabled={!selected.samples}
                   data-testid="play-btn"
                 >
-                  {playing ? '❚❚' : '▶'}
+                  <Icon name={playing ? "pause" : "play"} size={14} />
                 </button>
                 <input
                   type="range"
@@ -355,10 +356,10 @@ export default function SignalLabPage() {
                   className="flex-1 accent-cyan-400"
                   data-testid="playback-slider"
                 />
-                <span className="chip font-mono">{(position * 100).toFixed(0)}%</span>
+                <span className="chip data">{(position * 100).toFixed(0)}%</span>
               </div>
               {tab === 'spectrum' && Object.keys(stats).length > 0 && (
-                <div className="grid grid-cols-6 gap-2 mt-3 text-[10px] font-mono text-hud-dim">
+                <div className="grid grid-cols-6 gap-2 mt-3 text-[12px] data text-ink-dim">
                   <Stat k="功率 dBFS" v={stats.power_dbfs?.toFixed(1)} />
                   <Stat k="峰值" v={stats.mag_peak?.toFixed(2)} />
                   <Stat k="DC I" v={stats.i_mean?.toFixed(3)} />
@@ -376,30 +377,30 @@ export default function SignalLabPage() {
           <div className="panel-header">
             <span>SatDump 解码</span>
             {sdStatus && (
-              <span className={`font-mono normal-case ${sdStatus.installed ? 'text-hud-green' : 'text-hud-amber'}`}>
+              <span className={`data normal-case ${sdStatus.installed ? 'text-ok' : 'text-warn'}`}>
                 {sdStatus.installed ? `v${sdStatus.version ?? '?'}` : '未安装'}
               </span>
             )}
           </div>
           <div className="p-3 space-y-3 text-xs">
             {sdStatus && !sdStatus.installed && (
-              <div className="panel p-2.5 text-[11px] text-hud-dim leading-relaxed">
+              <div className="panel p-2.5 text-[12.5px] text-ink-dim leading-relaxed">
                 {sdStatus.note}
-                <div className="mt-1.5 font-mono text-[10px] text-slate-400">docs/satdump.md</div>
+                <div className="mt-1.5 data text-[12px] text-ink-dim">docs/satdump.md</div>
               </div>
             )}
 
             <div className="flex gap-2">
-              <button className="btn h-7 text-[11px] flex-1" disabled={busy || !sdStatus?.installed} onClick={() => void refreshPipelines()}>
+              <button className="btn h-7 text-[12.5px] flex-1" disabled={busy || !sdStatus?.installed} onClick={() => void refreshPipelines()}>
                 ↻ 探测 Pipeline
               </button>
-              <button className="btn btn-primary h-7 text-[11px] flex-1" disabled={busy || !selected || !pipeline} onClick={() => void startJob()} data-testid="start-decode">
+              <button className="btn btn-primary h-7 text-[12.5px] flex-1" disabled={busy || !selected || !pipeline} onClick={() => void startJob()} data-testid="start-decode">
                 ▶ 启动解码
               </button>
             </div>
 
             {pipelines.length > 0 && (
-              <select className="input !h-8 text-[11px]" value={pipeline} onChange={(e) => setPipeline(e.target.value)}>
+              <select className="input !h-8 text-[12.5px]" value={pipeline} onChange={(e) => setPipeline(e.target.value)}>
                 {pipelines.map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name} — {p.desc.slice(0, 30)}
@@ -409,43 +410,43 @@ export default function SignalLabPage() {
             )}
 
             <div>
-              <div className="text-hud-dim uppercase tracking-widest text-[10px] mb-1">解码任务</div>
+              <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">解码任务</div>
               <div className="space-y-1.5">
-                {jobs.length === 0 && <div className="text-[11px] text-hud-dim">暂无任务</div>}
+                {jobs.length === 0 && <div className="text-[12.5px] text-ink-dim">暂无任务</div>}
                 {jobs.map((j) => (
                   <div key={j.id} className="panel p-2" data-testid={`job-${j.id.slice(0, 8)}`}>
                     <div className="flex justify-between items-center">
-                      <span className="font-mono text-[11px] text-slate-300">{j.pipeline}</span>
+                      <span className="data text-[12.5px] text-ink">{j.pipeline}</span>
                       <span
                         className={`chip ${
                           j.status === 'done'
-                            ? 'text-hud-green border-hud-green/40'
+                            ? 'text-ok border-ok/40'
                             : j.status === 'failed'
-                              ? 'text-hud-red border-hud-red/40'
-                              : 'text-hud-blue border-hud-blue/40'
+                              ? 'text-danger border-danger/40'
+                              : 'text-signal border-signal/40'
                         }`}
                       >
                         {j.status}
                       </span>
                     </div>
                     {j.status === 'running' && (
-                      <div className="h-1.5 mt-1.5 rounded bg-space-900 overflow-hidden">
-                        <div className="h-full bg-hud-cyan" style={{ width: `${j.progress * 100}%` }} />
+                      <div className="h-1.5 mt-1.5 rounded bg-ground-1 overflow-hidden">
+                        <div className="h-full bg-signal" style={{ width: `${j.progress * 100}%` }} />
                       </div>
                     )}
-                    {j.status === 'failed' && <div className="text-[10px] text-hud-red mt-1">{j.error}</div>}
+                    {j.status === 'failed' && <div className="text-[12px] text-danger mt-1">{j.error}</div>}
                     {j.status === 'done' && (
-                      <div className="text-[10px] text-hud-dim mt-1 font-mono">
+                      <div className="text-[12px] text-ink-dim mt-1 data">
                         {j.result_files?.length ?? 0} 个输出文件
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-1.5">
-                      <button className="btn h-6 text-[10px] px-2" onClick={() => void watchJob(j.id)}>
+                      <button className="btn h-6 text-[12px] px-2" onClick={() => void watchJob(j.id)}>
                         日志
                       </button>
                       {(j.status === 'running' || j.status === 'pending') && (
                         <button
-                          className="btn btn-danger h-6 text-[10px] px-2"
+                          className="btn btn-danger h-6 text-[12px] px-2"
                           onClick={async () => {
                             await signalApi.satdumpCancel(j.id)
                             await refreshJobs()
@@ -456,7 +457,7 @@ export default function SignalLabPage() {
                       )}
                       {j.status === 'done' && (
                         <button
-                          className="btn btn-primary h-6 text-[10px] px-2"
+                          className="btn btn-primary h-6 text-[12px] px-2"
                           onClick={async () => {
                             await signalApi.satdumpCollect(j.id, {
                               save_id: saveId,
@@ -477,8 +478,8 @@ export default function SignalLabPage() {
 
             {logText && (
               <div>
-                <div className="text-hud-dim uppercase tracking-widest text-[10px] mb-1">任务日志</div>
-                <pre className="bg-space-950 rounded p-2 text-[10px] font-mono text-slate-400 max-h-48 overflow-auto whitespace-pre-wrap">
+                <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">任务日志</div>
+                <pre className="bg-ground-0 rounded p-2 text-[12px] data text-ink-dim max-h-48 overflow-auto whitespace-pre-wrap">
                   {logText || '（空）'}
                 </pre>
               </div>
@@ -494,7 +495,7 @@ function Stat({ k, v }: { k: string; v?: string }) {
   return (
     <div className="flex flex-col">
       <span>{k}</span>
-      <span className="text-slate-300">{v ?? '—'}</span>
+      <span className="text-ink">{v ?? '—'}</span>
     </div>
   )
 }

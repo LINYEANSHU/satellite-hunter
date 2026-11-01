@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
+import { useFrameCallback } from './FrameDriver'
 import { AdditiveBlending, BackSide, ShaderMaterial, TextureLoader, Vector3 } from 'three'
 import { sunDirection } from './coords'
 import { useTimeStore } from '../stores/gameStore'
@@ -91,7 +92,7 @@ export default function Earth({ onPointerDown }: { onPointerDown?: (e: ThreeEven
 
   // 太阳方向随仿真时间更新（低频即可）
   const lastSunUpdate = useRef(0)
-  useFrame(() => {
+  useFrameCallback(() => {
     const now = performance.now()
     if (now - lastSunUpdate.current < 500) return
     lastSunUpdate.current = now

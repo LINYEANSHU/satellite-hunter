@@ -4,42 +4,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Modern Space Mission Control 主题
-        space: {
-          950: '#070b12',
-          900: '#0a0f18',
-          850: '#0d1420',
-          800: '#111a29',
-          700: '#1a2536',
-          600: '#243247',
-          500: '#33455f',
+        // DESIGN.md：一地一墨一强调，表面靠明度阶梯分隔
+        ground: {
+          0: '#07090d',
+          1: '#0c1016',
+          2: '#121822',
+          3: '#1a2230',
+          4: '#242e40',
         },
-        hud: {
-          cyan: '#22d3ee',
-          blue: '#38bdf8',
-          green: '#34d399',
-          amber: '#fbbf24',
-          red: '#f87171',
-          violet: '#a78bfa',
-          dim: '#5b6b82',
+        ink: {
+          DEFAULT: '#e8edf4',
+          dim: '#8b98ab',
+          faint: '#77839b',
         },
+        signal: {
+          DEFAULT: '#3fd6e8',
+          deep: '#1899aa',
+        },
+        ok: '#4ade80',
+        warn: '#fbbf24',
+        danger: '#f87171',
       },
       fontFamily: {
-        mono: ['"JetBrains Mono"', '"Cascadia Mono"', 'Consolas', 'monospace'],
-        display: ['"Rajdhani"', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
+        sans: ['Inter', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
+        data: ['"JetBrains Mono"', '"Cascadia Mono"', 'Consolas', 'monospace'],
       },
-      boxShadow: {
-        panel: '0 0 0 1px rgba(56,189,248,0.08), 0 8px 32px rgba(0,0,0,0.45)',
-        glow: '0 0 12px rgba(34,211,238,0.25)',
-      },
-      keyframes: {
-        pulseSoft: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.55' },
-        },
-      },
-      animation: {
-        pulseSoft: 'pulseSoft 2s ease-in-out infinite',
+      fontSize: {
+        // 展示尺寸（主菜单/章节）与正文尺寸，两极分明
+        display: ['clamp(2rem, 4vw, 2.75rem)', { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        title: ['1.25rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
       },
     },
   },

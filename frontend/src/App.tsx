@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { api, type Capabilities } from './api/client'
-import { useGameStore } from './stores/gameStore'
+import { useGameStore, useTimeStore } from './stores/gameStore'
 import TimeBar from './components/TimeBar'
 import GameNotifications, { TutorialOverlay } from './components/GameNotifications'
+import Icon from './components/Icon'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
 import StationPage from './pages/StationPage'
@@ -14,72 +15,123 @@ import CodexPage from './pages/CodexPage'
 import AchievementsPage from './pages/AchievementsPage'
 import SettingsPage from './pages/SettingsPage'
 import StatusBar from './components/StatusBar'
+import { sfxToggleMute } from './lib/sfx'
 
 const NAV = [
-  { to: '/explorer', label: '轨道探索', icon: '🛰' },
-  { to: '/station', label: '地面站', icon: '📡' },
-  { to: '/equipment', label: '设备管理', icon: '🔧' },
-  { to: '/missions', label: '任务控制', icon: '🗺' },
-  { to: '/signallab', label: '信号实验室', icon: '📈' },
-  { to: '/codex', label: '卫星图鉴', icon: '📖' },
-  { to: '/achievements', label: '成就研究', icon: '🏆' },
-  { to: '/settings', label: '系统状态', icon: '⚙' },
+  { to: '/explorer', label: '轨道探索', icon: 'satellite' },
+  { to: '/station', label: '地面站', icon: 'dish' },
+  { to: '/equipment', label: '设备管理', icon: 'wrench' },
+  { to: '/missions', label: '任务控制', icon: 'route' },
+  { to: '/signallab', label: '信号实验室', icon: 'wave' },
+  { to: '/codex', label: '卫星图鉴', icon: 'book' },
+  { to: '/achievements', label: '成就研究', icon: 'trophy' },
+  { to: '/settings', label: '系统状态', icon: 'gear' },
 ]
 
 function Shell() {
   const [caps, setCaps] = useState<Capabilities | null>(null)
   const [backendDown, setBackendDown] = useState(false)
   const saveName = useGameStore((s) => s.saveName)
+  const [muteState, setMuteState] = useState(sfxMutedState())
 
+  // 键盘快捷键：空格暂停，1-4 倍速，N 回到现在
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const t = useTimeStore.getState()
+      if (e.code === 'Space') {
+        e.preventDefault()
+        t.setPaused(!t.paused)
+      } else if (e.key === '1') t.setScale(1)
+      else if (e.key === '2') t.setScale(10)
+      else if (e.key === '3') t.setScale(60)
+      else if (e.key === '4') t.setScale(1000)
+      else if (e.key.toLowerCase() === 'n') t.resetToReal()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // 刷新存档后从服务器同步一次资源显示（localStorage 只恢复上下文不恢复数值）
+  const saveId = useGameStore((s) => s.saveId)
+  useEffect(() => {
+    if (!saveId) return
     api
       .capabilities()
       .then(setCaps)
       .catch(() => setBackendDown(true))
-  }, [])
+    import('./api/game').then(({ gameApi }) =>
+      gameApi
+        .state(saveId)
+        .then((st) =>
+          useGameStore.getState().setSession({
+            credits: st.player.credits,
+            researchPoints: st.player.research_points,
+            xp: st.player.xp,
+            level: st.player.level,
+            totalMissionsDone: st.player.total_missions_done,
+            satellitesDiscovered: st.player.satellites_discovered,
+          }),
+        )
+        .catch(() => {}),
+    )
+  }, [saveId])
 
   return (
     <div className="h-full flex flex-col">
       {/* 顶栏 */}
-      <header className="h-12 flex items-center px-4 gap-4 border-b border-space-600/60 bg-space-900/80">
-        <NavLink to="/" className="flex items-center gap-2 group">
-          <span className="text-hud-cyan text-lg leading-none animate-pulseSoft">◉</span>
-          <span className="font-display font-semibold tracking-wider text-sm text-slate-100 group-hover:text-hud-cyan transition-colors">
-            SATELLITE HUNTER
+      <header className="h-12 flex items-center px-4 gap-3 bg-ground-1">
+        <NavLink to="/" className="flex items-center gap-2.5 group">
+          <Icon name="signal" size={16} className="text-signal" />
+          <span className="font-semibold text-[14px] text-ink group-hover:text-signal transition-colors">
+            Satellite Hunter
           </span>
-          <span className="text-[10px] text-hud-dim tracking-widest">GROUND STATION</span>
+          <span className="text-ink-dim text-[11px] hidden lg:inline">Ground Station</span>
         </NavLink>
         <div className="flex-1" />
-        {saveName && <span className="chip text-hud-violet">存档: {saveName}</span>}
+        {saveName && (
+          <span className="text-[12px] text-ink-dim">
+            <Icon name="archive" size={12} className="inline mr-1 -mt-0.5" />
+            {saveName}
+          </span>
+        )}
         <StatusBar caps={caps} backendDown={backendDown} />
+        <button
+          className="text-ink-dim hover:text-ink p-1.5"
+          title={muteState ? '开启音效' : '静音'}
+          onClick={() => setMuteState(sfxToggleMute())}
+        >
+          <Icon name={muteState ? 'mute' : 'sound'} size={15} />
+        </button>
       </header>
 
       <div className="flex-1 flex min-h-0">
         {/* 左侧导航 */}
-        <nav className="w-14 flex flex-col items-center gap-1 py-3 border-r border-space-600/60 bg-space-900/60">
+        <nav className="w-14 flex flex-col items-center gap-0.5 py-2 bg-ground-1">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               title={n.label}
               className={({ isActive }) =>
-                `w-10 h-10 rounded flex items-center justify-center text-lg transition-colors ${
+                `w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
                   isActive
-                    ? 'bg-hud-cyan/15 text-hud-cyan shadow-glow'
-                    : 'text-hud-dim hover:text-slate-200 hover:bg-space-800'
+                    ? 'bg-ground-3 text-signal border-l-2 border-l-signal'
+                    : 'text-ink-dim hover:text-ink hover:bg-ground-2'
                 }`
               }
             >
-              {n.icon}
+              <Icon name={n.icon} size={19} />
             </NavLink>
           ))}
           <div className="flex-1" />
           <NavLink
             to="/"
             title="主菜单"
-            className="w-10 h-10 rounded flex items-center justify-center text-lg text-hud-dim hover:text-slate-200 hover:bg-space-800"
+            className="w-10 h-10 rounded-md flex items-center justify-center text-ink-dim hover:text-ink hover:bg-ground-2"
           >
-            ⌂
+            <Icon name="home" size={19} />
           </NavLink>
         </nav>
 
@@ -91,14 +143,17 @@ function Shell() {
         </main>
       </div>
 
-      {/* 全局时间控制（需求 11.3：底部时间控制条） */}
+      {/* 全局时间控制 */}
       <TimeBar />
 
-      {/* 游戏事件提示 + 首次教程 */}
       <GameNotifications />
       <TutorialOverlay />
     </div>
   )
+}
+
+function sfxMutedState() {
+  return localStorage.getItem('sh-sfx-muted') === '1'
 }
 
 export default function App() {

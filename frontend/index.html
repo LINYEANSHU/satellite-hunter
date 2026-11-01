@@ -21,6 +21,19 @@
       window.addEventListener('unhandledrejection', function (e) {
         window.__shErrors.push('REJ: ' + String(e.reason && e.reason.stack ? e.reason.stack : e.reason));
       });
+      (function () {
+        var orig = console.error;
+        console.error = function () {
+          try {
+            var a = arguments[0];
+            window.__shErrors.push(
+              'CONSOLE: ' + String(a && a.stack ? a.stack.split('
+').slice(0, 4).join(' | ') : a)
+            );
+          } catch (e) {}
+          orig.apply(console, arguments);
+        };
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

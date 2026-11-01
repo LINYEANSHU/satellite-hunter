@@ -90,6 +90,56 @@ def game_state(save_id: str, db: Session = Depends(get_db)) -> dict:
     }
 
 
+@router.get("/game/stats")
+def game_stats(save_id: str, db: Session = Depends(get_db)) -> dict:
+    """运营统计仪表盘（全部来自真实任务记录）。"""
+    from app.services.game.stats import operator_stats
+
+    return operator_stats(db, save_id)
+
+
+# ================================================================ 新手任务链
+@router.post("/game/tutorial/seed")
+def tutorial_seed(body: dict, db: Session = Depends(get_db)) -> dict:
+    """为新存档生成 3 步新手任务链（观测→追踪→捕获，目标优先 ISS）。
+
+    幂等：已有新手任务时不重复生成。单步生成失败自动跳过
+    （如当前无可见过境，玩家可稍后重试或自行规划）。
+    """
+    save_id = body.get("save_id", "")
+    if not save_id:
+        raise AppError(400, "BAD_REQUEST", "缺少 save_id")
+    station = (
+        db.query(Station)
+        .filter(Station.save_id == save_id)
+        .order_by(Station.created_at.asc())
+        .first()
+    )
+    if station is None:
+        raise AppError(409, "NO_STATION", "请先建立地面站")
+    existing = (
+        db.query(Mission)
+        .filter(Mission.save_id == save_id, Mission.type == "tutorial")
+        .count()
+    )
+    if existing >= 3:
+        return {"created": 0, "note": "新手任务已存在"}
+
+    created = []
+    for sat_id in (25544, 48274, 25338):  # ISS → 天宫 → NOAA-15
+        try:
+            m = mission_service.create_mission(
+                db, save_id, station.id, sat_id, "tutorial", priority=1
+            )
+            created.append(m.satellite_name or m.satellite_id)
+            if len(created) >= 3 - existing:
+                break
+        except Exception:
+            continue
+    db.commit()
+    return {"created": len(created), "targets": created}
+
+
 # ================================================================ 设备
 @router.get("/equipment/catalog")
 def equipment_catalog() -> dict:

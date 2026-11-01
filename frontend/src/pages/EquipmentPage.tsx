@@ -42,7 +42,7 @@ export default function EquipmentPage() {
         subtitle="设备目录采购 · 真实 RF 参数 + 游戏平衡数值分离"
         right={
           <>
-            <span className="chip text-hud-amber border-hud-amber/40">₡ {Math.round(credits).toLocaleString()}</span>
+            <span className="chip text-warn border-warn/40">₡ {Math.round(credits).toLocaleString()}</span>
             <button className="btn h-7 text-xs" onClick={() => nav('/station')}>
               前往安装 →
             </button>
@@ -50,8 +50,8 @@ export default function EquipmentPage() {
         }
       />
 
-      {msg && <div className="panel px-3 py-2 mb-3 text-xs text-hud-cyan max-w-2xl">{msg}</div>}
-      {!saveId && <div className="panel p-4 mb-3 text-sm text-hud-dim">未进入存档——请先在主菜单进入。</div>}
+      {msg && <div className="panel px-3 py-2 mb-3 text-xs text-signal max-w-2xl">{msg}</div>}
+      {!saveId && <div className="panel p-4 mb-3 text-sm text-ink-dim">未进入存档——请先在主菜单进入。</div>}
 
       <div className="space-y-3 pb-6">
         {cats.map((cat) => (
@@ -59,15 +59,15 @@ export default function EquipmentPage() {
             <div className="panel-header">{CATEGORY_LABELS[cat.category] ?? cat.category}</div>
             <div className="grid grid-cols-3 gap-2 p-3">
               {cat.items.map((it) => (
-                <div key={it.id} className="rounded border border-space-500/70 bg-space-800/50 p-3 flex flex-col" data-testid={`cat-${it.id}`}>
+                <div key={it.id} className="rounded border  bg-ground-2/50 p-3 flex flex-col" data-testid={`cat-${it.id}`}>
                   <div className="flex justify-between items-start">
-                    <span className="text-slate-100 text-sm font-medium">{it.name}</span>
-                    <span className={`chip ${(it.price ?? 0) === 0 ? '' : 'text-hud-amber border-hud-amber/40'}`}>
+                    <span className="text-ink text-sm font-medium">{it.name}</span>
+                    <span className={`chip ${(it.price ?? 0) === 0 ? '' : 'text-warn border-warn/40'}`}>
                       {(it.price ?? 0) === 0 ? '初始' : `₡${it.price}`}
                     </span>
                   </div>
-                  <p className="text-[11px] text-hud-dim mt-1 leading-relaxed flex-1">{it.desc}</p>
-                  <div className="mt-2 space-y-0.5 font-mono text-[10px] text-slate-400">
+                  <p className="text-[12.5px] text-ink-dim mt-1 leading-relaxed flex-1">{it.desc}</p>
+                  <div className="mt-2 space-y-0.5 data text-[12px] text-ink-dim">
                     <SpecLine specs={it.specs} />
                   </div>
                   <button
@@ -83,7 +83,7 @@ export default function EquipmentPage() {
             </div>
           </section>
         ))}
-        <div className="panel p-3 text-[10px] text-hud-dim leading-relaxed max-w-3xl">
+        <div className="panel p-3 text-[12px] text-ink-dim leading-relaxed max-w-3xl">
           {typeof meta.说明 === 'string' ? meta.说明 : ''}
         </div>
       </div>
@@ -99,7 +99,7 @@ function SpecLine({ specs }: { specs: Record<string, unknown> }) {
     <>
       {entries.map(([k, v]) => (
         <div key={k} className="flex justify-between gap-2">
-          <span className="text-hud-dim">{SPEC_LABELS[k] ?? k}</span>
+          <span className="text-ink-dim">{SPEC_LABELS[k] ?? k}</span>
           <span>
             {Array.isArray(v) ? v.join('/') : String(v)}
           </span>

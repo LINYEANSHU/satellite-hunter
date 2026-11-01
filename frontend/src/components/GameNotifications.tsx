@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { phase4Api, type GameEventView } from '../api/game'
+import { sfx } from '../lib/sfx'
 import { useGameStore, useTimeStore } from '../stores/gameStore'
 
 /** 全局游戏事件提示（需求 8.3：事件明确标记为虚拟）+ 首次教程。 */
@@ -37,11 +38,11 @@ export default function GameNotifications() {
   return (
     <div className="fixed bottom-14 right-3 z-50 space-y-2 w-72 pointer-events-none">
       {toasts.map((t) => (
-        <div key={t.id} className="panel px-3 py-2 text-xs border-hud-amber/40 bg-space-850/95" data-testid="event-toast">
+        <div key={t.id} className="panel px-3 py-2 text-xs border-warn/40 bg-ground-1" data-testid="event-toast">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="chip text-hud-violet border-hud-violet/40">GAME_EVENT</span>
+            <span className="chip text-signal border-signal/40">GAME_EVENT</span>
           </div>
-          <div className="text-slate-200 leading-relaxed">{t.text}</div>
+          <div className="text-ink leading-relaxed">{t.text}</div>
         </div>
       ))}
     </div>
@@ -51,13 +52,13 @@ export default function GameNotifications() {
 function describeEvent(e: GameEventView): string {
   switch (e.kind) {
     case 'equipment_fault':
-      return `⚠ 设备故障（虚拟事件）：${e.station} 的「${e.equipment}」损坏，请前往地面站页维修。`
+      return `设备故障（虚拟事件）：${e.station} 的「${e.equipment}」损坏，请前往地面站页维修。`
     case 'bonus_window':
-      return `★ 临时挑战（虚拟事件）：${e.station} 未来 24h 任务奖励 +50%！`
+      return `临时挑战（虚拟事件）：${e.station} 未来 24h 任务奖励 +50%！`
     case 'power_surge':
-      return `⚡ 电力波动（虚拟事件）：${e.station}`
+      return `电力波动（虚拟事件）：${e.station}`
     case 'storage_warning':
-      return `💾 存储空间不足（虚拟事件）：${e.station}`
+      return `存储空间不足（虚拟事件）：${e.station}`
     default:
       return `游戏事件：${e.kind}`
   }
@@ -95,10 +96,10 @@ export function TutorialOverlay() {
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center" data-testid="tutorial">
       <div className="panel w-[420px] max-w-[92vw] p-5">
-        <div className="text-hud-cyan text-[10px] font-mono tracking-[0.3em] mb-2">TUTORIAL {step + 1}/{steps.length}</div>
-        <h3 className="text-lg font-semibold text-slate-100 mb-2">{s.title}</h3>
-        <p className="text-sm text-slate-300 leading-relaxed">{s.body}</p>
-        {s.hint && <p className="text-xs text-hud-dim mt-2">💡 {s.hint}</p>}
+        <div className="text-signal text-[12px] data tracking-[0.3em] mb-2">新手指引 {step + 1} / {steps.length}</div>
+        <h3 className="text-lg font-semibold text-ink mb-2">{s.title}</h3>
+        <p className="text-sm text-ink leading-relaxed">{s.body}</p>
+        {s.hint && <p className="text-xs text-ink-dim mt-2">{s.hint}</p>}
         <div className="flex justify-end gap-2 mt-4">
           <button
             className="btn"
@@ -109,6 +110,29 @@ export function TutorialOverlay() {
           >
             跳过
           </button>
+          {step === steps.length - 1 && (
+            <button
+              className="btn"
+              data-testid="tutorial-seed"
+              onClick={async () => {
+                try {
+                  const r = await fetch('/api/game/tutorial/seed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ save_id: useGameStore.getState().saveId }),
+                  })
+                  const d = await r.json()
+                  if (d.created > 0) sfx.achievement()
+                } catch {
+                  /* 新手任务可稍后在任务页手动创建 */
+                }
+                localStorage.setItem('sh-tutorial-done', '1')
+                setStep(-1)
+              }}
+            >
+              生成新手任务链
+            </button>
+          )}
           <button
             className="btn btn-primary"
             data-testid="tutorial-next"
@@ -119,7 +143,7 @@ export function TutorialOverlay() {
               } else setStep(step + 1)
             }}
           >
-            {step === steps.length - 1 ? '开始游戏' : '下一步 →'}
+            {step === steps.length - 1 ? '跳过，开始游戏' : '下一步'}
           </button>
         </div>
       </div>

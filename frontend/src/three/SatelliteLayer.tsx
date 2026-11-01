@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
+import { useFrameCallback } from './FrameDriver'
 import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Points } from 'three'
 import { useCatalogStore } from '../stores/catalogStore'
 import { useTimeStore } from '../stores/gameStore'
@@ -9,7 +10,7 @@ const GROUP_COLORS: Record<string, string> = {
   stations: '#fbbf24',
   weather: '#38bdf8',
   amateur: '#34d399',
-  science: '#a78bfa',
+  science: '#fbbf24',
   visual: '#e2e8f0',
   geo: '#f472b6',
   active: '#38bdf8',
@@ -35,7 +36,7 @@ export default function SatelliteLayer({ onPick }: { onPick?: (noradId: number |
     return { geometry, positionsAttr }
   }, [])
 
-  useFrame(() => {
+  useFrameCallback(() => {
     const { samples } = useCatalogStore.getState()
     if (!geomRef.current || samples.length === 0) return
     const simT = useTimeStore.getState().now()

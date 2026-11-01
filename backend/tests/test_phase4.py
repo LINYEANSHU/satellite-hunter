@@ -88,7 +88,7 @@ def test_scheduler_apply_creates_scheduled_missions(client, fake_catalog, ctx):
 def test_research_unlock_flow(client, ctx):
     save_id, _ = ctx
     r = client.get("/api/game/research", params={"save_id": save_id}).json()
-    assert len(r["items"]) == 5
+    assert len(r["items"]) == 10
     assert all(not i["unlocked"] for i in r["items"])
 
     # RP 不足

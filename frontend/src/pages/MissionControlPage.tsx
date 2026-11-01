@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orbitApi, type SatelliteItem } from '../api/orbit'
@@ -12,6 +13,8 @@ import PageHeader from '../components/PageHeader'
 import { useGameStore, useTimeStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
 import { phase4Api, type ScheduleSuggestion } from '../api/game'
+import MissionTimeline from '../components/MissionTimeline'
+import { sfx, useMissionSfx } from '../lib/sfxHooks'
 
 const STATUS_TABS = [
   { key: '', label: '全部' },
@@ -22,12 +25,12 @@ const STATUS_TABS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  planned: 'text-hud-blue border-hud-blue/40',
-  active: 'text-hud-green border-hud-green/40',
-  completed: 'text-hud-cyan border-hud-cyan/40',
-  failed: 'text-hud-red border-hud-red/40',
-  cancelled: 'text-hud-dim border-space-500/60',
-  scheduled: 'text-hud-violet border-hud-violet/40',
+  planned: 'text-signal border-signal/40',
+  active: 'text-ok border-ok/40',
+  completed: 'text-signal border-signal/40',
+  failed: 'text-danger border-danger/40',
+  cancelled: 'text-ink-dim ',
+  scheduled: 'text-signal border-signal/40',
 }
 
 function useRefreshCredits() {
@@ -78,7 +81,7 @@ export default function MissionControlPage() {
 
   if (!saveId) {
     return (
-      <div className="h-full panel flex items-center justify-center text-sm text-hud-dim">
+      <div className="h-full panel flex items-center justify-center text-sm text-ink-dim">
         未进入存档
         <button className="btn ml-3" onClick={() => nav('/')}>
           返回主菜单
@@ -94,7 +97,7 @@ export default function MissionControlPage() {
         subtitle="任务日历 · 创建 · 执行监视"
         right={
           <>
-            <span className="chip text-hud-amber border-hud-amber/40">₡{Math.round(credits).toLocaleString()}</span>
+            <span className="chip text-warn border-warn/40">₡{Math.round(credits).toLocaleString()}</span>
             <button className="btn btn-primary" onClick={() => setCreating(true)} data-testid="new-mission-btn">
               + 创建任务
             </button>
@@ -102,14 +105,26 @@ export default function MissionControlPage() {
         }
       />
 
+      <StatsStrip saveId={saveId} />
+
       <div className="flex gap-3 flex-1 min-h-0">
         {/* 任务列表 */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
+          <div className="panel px-1 pt-1 pb-0 overflow-hidden shrink-0" data-testid="timeline-panel">
+            <MissionTimeline
+              missions={missions}
+              selectedId={executingId}
+              onSelect={(id) => {
+                setExecutingId(id)
+                sfx.click()
+              }}
+            />
+          </div>
           <div className="flex gap-1.5">
             {STATUS_TABS.map((t) => (
               <button
                 key={t.key}
-                className={`chip cursor-pointer ${tab === t.key ? 'text-hud-cyan border-hud-cyan/50' : 'hover:text-slate-300'}`}
+                className={`chip cursor-pointer ${tab === t.key ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
                 onClick={() => setTab(t.key)}
               >
                 {t.label}
@@ -118,7 +133,7 @@ export default function MissionControlPage() {
           </div>
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0" data-testid="mission-list">
             {filtered.length === 0 && (
-              <div className="panel p-4 text-xs text-hud-dim text-center">
+              <div className="panel p-4 text-xs text-ink-dim text-center">
                 暂无任务。点击「+ 创建任务」规划一次卫星接收。
               </div>
             )}
@@ -195,18 +210,18 @@ function MissionRow({
       <span className={`chip shrink-0 ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] text-slate-200 truncate">{m.satellite_name || `NORAD ${m.satellite_id}`}</span>
+          <span className="text-[13px] text-ink truncate">{m.satellite_name || `NORAD ${m.satellite_id}`}</span>
           <span className="chip">{MISSION_TYPE_LABELS[m.type] ?? m.type}</span>
-          {m.auto && <span className="chip text-hud-violet">自动</span>}
+          {m.auto && <span className="chip text-signal">自动</span>}
         </div>
-        <div className="text-[10px] font-mono text-hud-dim mt-0.5">
+        <div className="text-[12px] data text-ink-dim mt-0.5">
           {aos ? aos.toLocaleString() : '—'} · {Math.round(m.planned_duration_s / 60)}min · 最高 {m.max_elevation_deg.toFixed(0)}°
           {m.frequency_hz ? ` · ${(m.frequency_hz / 1e6).toFixed(2)} MHz` : ''} · 站 {stationName(stations, m.station_id)}
         </div>
       </div>
-      <div className="text-right text-[10px] font-mono shrink-0">
-        <div className="text-hud-amber">+₡{m.reward_credits}</div>
-        <div className="text-hud-dim">+{m.reward_rp} RP</div>
+      <div className="text-right text-[12px] data shrink-0">
+        <div className="text-warn">+₡{m.reward_credits}</div>
+        <div className="text-ink-dim">+{m.reward_rp} RP</div>
       </div>
       <div className="flex gap-1.5 shrink-0">
         {m.status === 'active' && (
@@ -240,6 +255,7 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
   const simNow = useRef(0)
   const refreshCredits = useRefreshCredits()
   const notifiedDone = useRef(false)
+  useMissionSfx(t?.mission.status, t?.phase)
 
   useEffect(() => {
     let alive = true
@@ -271,26 +287,26 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
   return (
     <div className="w-80 shrink-0 panel overflow-y-auto" data-testid="mission-exec">
       <div className="panel-header">
-        <span className="normal-case tracking-normal text-slate-200 text-xs">
+        <span className="normal-case tracking-normal text-ink text-xs">
           {t.phase === 'receiving' ? '● 接收中' : t.phase === 'waiting' ? '○ 等待过境' : '任务结束'}
         </span>
-        <button className="text-hud-dim hover:text-slate-200" onClick={onClose}>
-          ✕
+        <button className="text-ink-dim hover:text-ink" onClick={onClose}>
+          <Icon name="close" size={13} />
         </button>
       </div>
       <div className="p-3 space-y-3 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-slate-200 text-[13px]">{m.satellite_name}</span>
+          <span className="text-ink text-[13px]">{m.satellite_name}</span>
           <span className={`chip ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
         </div>
 
         {t.phase === 'waiting' && t.seconds_to_aos !== undefined && (
           <div className="panel p-3 text-center">
-            <div className="text-hud-dim">距 AOS</div>
-            <div className="font-mono text-2xl text-hud-cyan mt-1">
+            <div className="text-ink-dim">距 AOS</div>
+            <div className="data text-2xl text-signal mt-1">
               {Math.floor(t.seconds_to_aos / 60)}:{String(Math.floor(t.seconds_to_aos % 60)).padStart(2, '0')}
             </div>
-            <div className="text-[10px] text-hud-dim mt-1">使用底部时间控制推进到过境窗口</div>
+            <div className="text-[12px] text-ink-dim mt-1">使用底部时间控制推进到过境窗口</div>
           </div>
         )}
 
@@ -300,7 +316,7 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
             <div className="flex justify-center">
               <Compass az={t.azimuth_deg ?? 0} el={t.elevation_deg ?? 0} />
             </div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 data">
               <KV k="方位角" v={`${t.azimuth_deg?.toFixed(1)}°`} />
               <KV k="仰角" v={`${t.elevation_deg?.toFixed(1)}°`} />
               <KV k="距离" v={`${t.range_km?.toFixed(0)} km`} />
@@ -308,13 +324,13 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
             </div>
             {/* 信号强度 */}
             <div>
-              <div className="flex justify-between text-[10px] text-hud-dim mb-1">
+              <div className="flex justify-between text-[12px] text-ink-dim mb-1">
                 <span>SNR {t.snr_db?.toFixed(1)} dB（需 {t.mission.frequency_hz ? '' : ''}{(t.margin_db ?? 0) >= 0 ? '余量 +' : '余量 '}{t.margin_db?.toFixed(1)} dB）</span>
-                <span className="font-mono">质量 {t.quality?.toFixed(0)}%</span>
+                <span className="data">质量 {t.quality?.toFixed(0)}%</span>
               </div>
-              <div className="h-2 rounded bg-space-900 overflow-hidden">
+              <div className="h-2 rounded bg-ground-1 overflow-hidden">
                 <div
-                  className={`h-full ${(t.quality ?? 0) > 55 ? 'bg-hud-green' : (t.quality ?? 0) > 30 ? 'bg-hud-amber' : 'bg-hud-red'}`}
+                  className={`h-full ${(t.quality ?? 0) > 55 ? 'bg-ok' : (t.quality ?? 0) > 30 ? 'bg-warn' : 'bg-danger'}`}
                   style={{ width: `${t.quality ?? 0}%` }}
                   data-testid="snr-bar"
                 />
@@ -322,21 +338,21 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
             </div>
             {/* 进度与数据 */}
             <div>
-              <div className="flex justify-between text-[10px] text-hud-dim mb-1">
+              <div className="flex justify-between text-[12px] text-ink-dim mb-1">
                 <span>任务进度</span>
-                <span className="font-mono">{((t.progress ?? 0) * 100).toFixed(1)}%</span>
+                <span className="data">{((t.progress ?? 0) * 100).toFixed(1)}%</span>
               </div>
-              <div className="h-2 rounded bg-space-900 overflow-hidden">
-                <div className="h-full bg-hud-cyan" style={{ width: `${(t.progress ?? 0) * 100}%` }} />
+              <div className="h-2 rounded bg-ground-1 overflow-hidden">
+                <div className="h-full bg-signal" style={{ width: `${(t.progress ?? 0) * 100}%` }} />
               </div>
-              <div className="flex justify-between mt-2 text-[11px] font-mono">
-                <span className="text-hud-dim">数据缓存</span>
-                <span className="text-hud-cyan">{t.data_mb?.toFixed(2)} MB</span>
+              <div className="flex justify-between mt-2 text-[12.5px] data">
+                <span className="text-ink-dim">数据缓存</span>
+                <span className="text-signal">{t.data_mb?.toFixed(2)} MB</span>
               </div>
             </div>
-            <div className="flex justify-between text-[10px] font-mono text-hud-dim pt-1 border-t border-space-600/40">
+            <div className="flex justify-between text-[12px] data text-ink-dim pt-1 ">
               <span>{t.frequency_mhz?.toFixed(2)} MHz · {t.modulation}</span>
-              <span className="text-hud-amber">SIMULATED_RF</span>
+              <span className="text-warn">SIMULATED_RF</span>
             </div>
           </>
         )}
@@ -344,18 +360,18 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
         {t.phase === 'done' && (
           <div className="space-y-2">
             {m.status === 'completed' ? (
-              <div className="panel p-3 text-hud-green">
-                ✔ 任务成功
-                <div className="text-[11px] font-mono text-hud-dim mt-1.5 space-y-0.5">
+              <div className="panel p-3 text-ok">
+                任务成功
+                <div className="text-[12.5px] data text-ink-dim mt-1.5 space-y-0.5">
                   <div>数据 {(m.data_produced_mb as number)?.toFixed(2)} MB</div>
                   <div>链路余量 {(m.result as any)?.avg_margin_db} dB · 覆盖 {((m.result as any)?.coverage ?? 0) * 100}%</div>
-                  <div className="text-hud-amber">奖励 +₡{m.reward_credits} +{m.reward_rp} RP</div>
+                  <div className="text-warn">奖励 +₡{m.reward_credits} +{m.reward_rp} RP</div>
                 </div>
               </div>
             ) : (
-              <div className="panel p-3 text-hud-red">
-                ✖ 任务失败
-                <div className="text-[11px] text-hud-dim mt-1">{m.failure_reason}</div>
+              <div className="panel p-3 text-danger">
+                任务失败
+                <div className="text-[12.5px] text-ink-dim mt-1">{m.failure_reason}</div>
               </div>
             )}
           </div>
@@ -404,8 +420,8 @@ function Compass({ az, el }: { az: number; el: number }) {
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-hud-dim">{k}</span>
-      <span className="text-slate-300">{v}</span>
+      <span className="text-ink-dim">{k}</span>
+      <span className="text-ink">{v}</span>
     </div>
   )
 }
@@ -465,16 +481,16 @@ function CreateMissionModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="create-mission-modal">
       <div className="panel w-[520px] max-w-[92vw] p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-100">创建接收任务</h3>
+        <h3 className="text-sm font-semibold text-ink">创建接收任务</h3>
 
         <div>
-          <label className="text-xs text-hud-dim">目标卫星（空间站分组搜索）</label>
+          <label className="text-xs text-ink-dim">目标卫星（空间站分组搜索）</label>
           {sat ? (
             <div className="flex items-center justify-between mt-1 panel px-2 py-1.5">
-              <span className="text-sm text-slate-200">
-                {sat.name} <span className="text-hud-dim text-xs font-mono">#{sat.norad_id}</span>
+              <span className="text-sm text-ink">
+                {sat.name} <span className="text-ink-dim text-xs data">#{sat.norad_id}</span>
               </span>
-              <button className="text-hud-dim hover:text-slate-200" onClick={() => setSat(null)}>
+              <button className="text-ink-dim hover:text-ink" onClick={() => setSat(null)}>
                 更换
               </button>
             </div>
@@ -485,14 +501,14 @@ function CreateMissionModal({
                 {results.map((s) => (
                   <button
                     key={s.norad_id}
-                    className="w-full text-left px-2 py-1.5 rounded hover:bg-space-700/50 text-[13px] text-slate-300 flex justify-between"
+                    className="w-full text-left px-2 py-1.5 rounded hover:bg-ground-2 text-[13px] text-ink flex justify-between"
                     onClick={() => {
                       setSat(s)
                       setResults([])
                     }}
                   >
                     <span>{s.name}</span>
-                    <span className="font-mono text-[10px] text-hud-dim">{s.norad_id}</span>
+                    <span className="data text-[12px] text-ink-dim">{s.norad_id}</span>
                   </button>
                 ))}
               </div>
@@ -501,7 +517,7 @@ function CreateMissionModal({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs text-hud-dim">
+          <label className="text-xs text-ink-dim">
             地面站
             <select className="input mt-1" value={stationId} onChange={(e) => setStationId(e.target.value)}>
               {stations.map((s) => (
@@ -511,7 +527,7 @@ function CreateMissionModal({
               ))}
             </select>
           </label>
-          <label className="text-xs text-hud-dim">
+          <label className="text-xs text-ink-dim">
             任务类型
             <select className="input mt-1" value={type} onChange={(e) => setType(e.target.value)}>
               {Object.entries(MISSION_TYPE_LABELS)
@@ -525,9 +541,9 @@ function CreateMissionModal({
           </label>
         </div>
 
-        {err && <div className="text-xs text-hud-red">{err}</div>}
+        {err && <div className="text-xs text-danger">{err}</div>}
 
-        <p className="text-[10px] text-hud-dim leading-relaxed">
+        <p className="text-[12px] text-ink-dim leading-relaxed">
           任务将自动规划该卫星下一次过境（72h 内）。系统会校验设备频段覆盖、站点冲突与计算机并发。
           模拟接收结果由简化链路模型 + 种子化抖动决定（SIMULATED_RF）。
         </p>
@@ -607,31 +623,31 @@ function SchedulerPanel({
     <div className="w-72 shrink-0 panel overflow-y-auto" data-testid="scheduler-panel">
       <div className="panel-header">自动调度（确定性规则）</div>
       <div className="p-3 space-y-2.5 text-xs">
-        <select className="input !h-7 text-[11px]" value={stationId} onChange={(e) => setStationId(e.target.value)}>
+        <select className="input !h-7 text-[12.5px]" value={stationId} onChange={(e) => setStationId(e.target.value)}>
           {stations.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
           ))}
         </select>
-        <label className="block text-hud-dim">
+        <label className="block text-ink-dim">
               预测窗口 {hours}h
           <input type="range" min={6} max={72} step={6} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="w-full accent-cyan-400" />
         </label>
-        <label className="block text-hud-dim">
+        <label className="block text-ink-dim">
               最低过境仰角 {minEl}°
           <input type="range" min={5} max={60} step={5} value={minEl} onChange={(e) => setMinEl(Number(e.target.value))} className="w-full accent-cyan-400" />
         </label>
-        <label className="flex items-center gap-2 text-hud-dim">
+        <label className="flex items-center gap-2 text-ink-dim">
           <input type="checkbox" checked={preferUncollected} onChange={(e) => setPreferUncollected(e.target.checked)} className="accent-cyan-400" />
               优先未收藏卫星
         </label>
         <div className="flex gap-2">
-          <button className="btn h-7 text-[11px] flex-1" disabled={busy} onClick={() => void preview()} data-testid="scheduler-preview">
+          <button className="btn h-7 text-[12.5px] flex-1" disabled={busy} onClick={() => void preview()} data-testid="scheduler-preview">
             生成建议
           </button>
           <button
-            className="btn btn-primary h-7 text-[11px] flex-1"
+            className="btn btn-primary h-7 text-[12.5px] flex-1"
             disabled={busy || !suggestions?.length}
             onClick={() => void apply()}
             data-testid="scheduler-apply"
@@ -639,30 +655,88 @@ function SchedulerPanel({
             应用并创建
           </button>
         </div>
-        {msg && <div className="text-[11px] text-hud-cyan">{msg}</div>}
+        {msg && <div className="text-[12.5px] text-signal">{msg}</div>}
         {suggestions && (
           <div className="space-y-1">
-            {suggestions.length === 0 && <div className="text-[11px] text-hud-dim">窗口内无满足规则的过境</div>}
+            {suggestions.length === 0 && <div className="text-[12.5px] text-ink-dim">窗口内无满足规则的过境</div>}
             {suggestions.map((s) => (
               <div key={s.satellite_id + s.aos} className="panel px-2 py-1.5 flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="text-[11px] text-slate-300 truncate">
-                    {s.new_satellite && <span className="text-hud-violet mr-1">NEW</span>}
+                  <div className="text-[12.5px] text-ink truncate">
+                    {s.new_satellite && <span className="text-signal mr-1">NEW</span>}
                     {s.satellite_name}
                   </div>
-                  <div className="text-[10px] font-mono text-hud-dim">
+                  <div className="text-[12px] data text-ink-dim">
                     {new Date(s.aos).toLocaleString()} · {s.max_elevation_deg}°
                   </div>
                 </div>
-                <span className="chip text-hud-amber shrink-0">+₡{s.reward_credits}</span>
+                <span className="chip text-warn shrink-0">+₡{s.reward_credits}</span>
               </div>
             ))}
           </div>
         )}
-        <p className="text-[10px] text-hud-dim leading-relaxed border-t border-space-600/40 pt-2">
+        <p className="text-[12px] text-ink-faint leading-relaxed pt-2 bg-ground-1 rounded px-2 py-1.5">
           调度为确定性规则算法（频段覆盖/冲突/仰角/收藏加权），设备安全约束不交由任何模型判定。
         </p>
       </div>
+    </div>
+  )
+}
+
+
+/** 运营统计条：全部来自真实任务记录（/api/game/stats）。 */
+function StatsStrip({ saveId }: { saveId: string }) {
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null)
+  useEffect(() => {
+    if (!saveId) return
+    let alive = true
+    const load = () =>
+      fetch(`/api/game/stats?save_id=${saveId}`)
+        .then((r) => r.json())
+        .then((d) => alive && setStats(d))
+        .catch(() => {})
+    void load()
+    const iv = window.setInterval(load, 6000)
+    return () => {
+      alive = false
+      window.clearInterval(iv)
+    }
+  }, [saveId])
+
+  if (!stats) return null
+  const rate = stats.success_rate as number | null
+  const daily = (stats.daily as { date: string; completed: number }[]) ?? []
+  const maxDaily = Math.max(1, ...daily.map((d) => d.completed))
+
+  return (
+    <div className="panel px-4 py-2.5 flex items-center gap-6 shrink-0 rise" data-testid="stats-strip">
+      <Metric k="成功率" v={rate === null || rate === undefined ? '—' : `${Math.round(rate * 100)}%`} />
+      <Metric k="已完成" v={String(stats.missions_completed)} />
+      <Metric k="24 小时" v={String(stats.completed_last_24h)} />
+      <Metric k="连胜" v={String(stats.success_streak)} />
+      <Metric k="数据" v={`${(stats.data_total_mb as number).toFixed(1)} MB`} />
+      <Metric k="发现卫星" v={String(stats.discovered)} />
+      <Metric k="地面站" v={String(stats.stations)} />
+      {/* 近 7 天迷你柱状图 */}
+      <div className="flex items-end gap-1 ml-auto h-8" title="近 7 天每日完成任务数">
+        {daily.map((d) => (
+          <div
+            key={d.date}
+            className="w-2 rounded-sm bg-signal/40"
+            style={{ height: `${Math.max(8, (d.completed / maxDaily) * 100)}%` }}
+            title={`${d.date}：${d.completed} 次`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Metric({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div className="text-[12.5px] text-ink-dim">{k}</div>
+      <div className="data text-[15px] text-ink">{v}</div>
     </div>
   )
 }
