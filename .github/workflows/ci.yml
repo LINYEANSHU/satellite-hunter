@@ -25,7 +25,20 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: python -m pytest -q
+        run: |
+          python -m pytest -q --tb=short -rf 2>&1 | tee pytest.log
+          exit ${PIPE_STATUS[0]}
+
+      - name: Report failures
+        if: failure()
+        working-directory: backend
+        run: |
+          grep -E "^(FAILED|ERROR)" pytest.log | head -20 | while IFS= read -r line; do
+            echo "::error::${line:0:300}"
+          done
+          tail -n 40 pytest.log | while IFS= read -r line; do
+            echo "::error::${line:0:300}"
+          done
 
   frontend:
     name: Frontend (tsc + build)
