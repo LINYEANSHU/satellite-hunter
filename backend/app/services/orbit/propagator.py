@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import math
+import threading
 from dataclasses import dataclass
 
 import numpy as np
@@ -142,3 +143,95 @@ class Propagator:
             alt_km=alt,
             speed_km_s=float(math.sqrt(float(v_ecef[0]) ** 2 + float(v_ecef[1]) ** 2 + float(v_ecef[2]) ** 2)),
         )
+
+    def positions_ecef_batch(
+        self, dts: list, ids: list[int] | None = None
+    ) -> dict[int, list[SatPosition]]:
+        """多 UTC 时刻批量传播：每颗卫星一次 SGP4 批量调用。
+
+        返回 {norad_id: [SatPosition, ...]}，列表顺序与 dts 一致。
+        初始化失败的卫星不在结果中；某时刻 SGP4 传播错误时该位置元素
+        为 error 非零的 SatPosition（调用方可按需跳过，与 positions_ecef 语义一致）。
+        """
+        if not dts:
+            return {}
+        if ids is None:
+            ids = self._ids
+        target = [i for i in ids if i in self._satrecs]
+
+        n = len(dts)
+        jd_arr = np.empty(n)
+        fr_arr = np.empty(n)
+        for k, dt in enumerate(dts):
+            jd, fr = tf.jday_utc(dt)
+            jd_arr[k] = jd
+            fr_arr[k] = fr
+        gmst_arr = tf.gmst_deg_array(jd_arr, fr_arr)
+        theta = gmst_arr * math.pi / 180.0
+        c, s = np.cos(theta), np.sin(theta)
+        omega = tf.EARTH_OMEGA
+
+        result: dict[int, list[SatPosition]] = {}
+        for nid in target:
+            sat = self._satrecs[nid]
+            err, r_teme, v_teme = sat.sgp4_array(jd_arr, fr_arr)
+            err = np.atleast_1d(err).ravel()
+            r_teme = np.atleast_2d(r_teme).reshape(n, 3)
+            v_teme = np.atleast_2d(v_teme).reshape(n, 3)
+
+            x, y, z = r_teme[:, 0], r_teme[:, 1], r_teme[:, 2]
+            r_ecef = np.stack([c * x + s * y, -s * x + c * y, z], axis=1)
+            vx, vy, vz = v_teme[:, 0], v_teme[:, 1], v_teme[:, 2]
+            v_inert = np.stack([c * vx + s * vy, -s * vx + c * vy, vz], axis=1)
+            v_ecef = v_inert.copy()
+            v_ecef[:, 0] += omega * r_ecef[:, 1]
+            v_ecef[:, 1] -= omega * r_ecef[:, 0]
+
+            out: list[SatPosition] = []
+            for k in range(n):
+                if err[k]:
+                    out.append(
+                        SatPosition(
+                            norad_id=nid,
+                            error=int(err[k]),
+                            error_msg="SGP4 传播错误（可能轨道已衰减或根数异常）",
+                        )
+                    )
+                    continue
+                out.append(self._make_position(nid, r_ecef[k], v_ecef[k]))
+            result[nid] = out
+        return result
+
+
+class GroupPropagatorCache:
+    """按分组数据版本缓存 Propagator，避免高频请求重复构建 Satrec/SatrecArray。
+
+    键为 (group, 条目号元组)：条目集合必须参与键的构成——调用方可能传入
+    过滤/截断后的子集（如 /satellites/positions 的 ids 搜索），若只用
+    (group, len(entries)) 作键，两个不同子集条数相同时会错误复用对方的
+    传播器，导致返回空/错位置（正确性 bug，已于本版修复）。
+    SGP4 根数不可变，因此同一版本数据复用传播器是安全的。
+    """
+
+    def __init__(self, max_entries: int = 8) -> None:
+        self._cache: dict[tuple, tuple[float, Propagator]] = {}
+        self._max = max_entries
+        self._lock = threading.Lock()
+
+    def get(self, group: str, fetched_at: float, entries: list[SatEntry]) -> Propagator:
+        key = (group, tuple(e.norad_id for e in entries))
+        with self._lock:
+            hit = self._cache.get(key)
+            if hit is not None and hit[0] == fetched_at:
+                return hit[1]
+        # 构建在锁外进行：Satrec/SatrecArray 构建较重，避免阻塞其他分组的
+        # 并发请求；重复构建时后写覆盖，结果一致（SGP4 确定性）。
+        prop = Propagator(entries)
+        with self._lock:
+            if len(self._cache) >= self._max:
+                self._cache.clear()
+            self._cache[key] = (fetched_at, prop)
+            return self._cache[key][1]
+
+
+group_propagator_cache = GroupPropagatorCache()

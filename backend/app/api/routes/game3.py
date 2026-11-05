@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.db.models import GameEvent, Station
 from app.core.errors import AppError
+from app.core.timeparse import parse_utc_at
 from app.services.game import events as event_service
 from app.services.game import scheduler as scheduler_service
 
@@ -29,11 +30,7 @@ class ScheduleReq(BaseModel):
 def scheduler_plan(body: ScheduleReq, db: Session = Depends(get_db)) -> dict:
     """生成（或应用）自动调度建议。确定性规则（需求 8.2）。"""
     rules = scheduler_service.parse_rules(body.rules)
-    start = (
-        datetime.fromisoformat(body.at.replace("Z", "+00:00")).replace(tzinfo=None)
-        if body.at
-        else datetime.utcnow()
-    )
+    start = parse_utc_at(body.at)
     if body.apply:
         created = scheduler_service.apply_schedule(db, body.station_id, body.hours, rules, start)
         db.commit()
@@ -57,11 +54,7 @@ def events_check(body: dict, db: Session = Depends(get_db)) -> dict:
     """惰性日事件判定（前端在进入存档/时间跳转后调用）。"""
     save_id = body.get("save_id", "")
     at = body.get("at")
-    sim_time = (
-        datetime.fromisoformat(at.replace("Z", "+00:00")).replace(tzinfo=None)
-        if at
-        else datetime.utcnow()
-    )
+    sim_time = parse_utc_at(at)
     if not save_id:
         raise AppError(400, "BAD_REQUEST", "缺少 save_id")
     fired = event_service.daily_event_check(db, save_id, sim_time)

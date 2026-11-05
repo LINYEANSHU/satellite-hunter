@@ -14,15 +14,10 @@ import { useGameStore, useTimeStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
 import { phase4Api, type ScheduleSuggestion } from '../api/game'
 import MissionTimeline from '../components/MissionTimeline'
+import { useLang, fmt, translateFailure, tr } from '../i18n'
 import { sfx, useMissionSfx } from '../lib/sfxHooks'
 
-const STATUS_TABS = [
-  { key: '', label: '全部' },
-  { key: 'planned', label: '已计划' },
-  { key: 'active', label: '执行中' },
-  { key: 'completed', label: '已完成' },
-  { key: 'failed', label: '失败' },
-]
+const STATUS_KEYS = ['', 'planned', 'active', 'completed', 'failed'] as const
 
 const STATUS_COLORS: Record<string, string> = {
   planned: 'text-signal border-signal/40',
@@ -60,6 +55,7 @@ export default function MissionControlPage() {
   const [tab, setTab] = useState('')
   const [creating, setCreating] = useState(false)
   const [executingId, setExecutingId] = useState<string | null>(null)
+  const { t } = useLang()
 
   const reload = useCallback(async () => {
     if (!saveId) return
@@ -82,9 +78,9 @@ export default function MissionControlPage() {
   if (!saveId) {
     return (
       <div className="h-full panel flex items-center justify-center text-sm text-ink-dim">
-        未进入存档
+        {t.missions.noSave}
         <button className="btn ml-3" onClick={() => nav('/')}>
-          返回主菜单
+          {t.missions.backMenu}
         </button>
       </div>
     )
@@ -93,13 +89,13 @@ export default function MissionControlPage() {
   return (
     <div className="h-full flex flex-col gap-3 min-h-0">
       <PageHeader
-        title="任务控制中心"
-        subtitle="任务日历 · 创建 · 执行监视"
+        title={t.missions.title}
+        subtitle={t.missions.subtitle}
         right={
           <>
             <span className="chip text-warn border-warn/40">₡{Math.round(credits).toLocaleString()}</span>
             <button className="btn btn-primary" onClick={() => setCreating(true)} data-testid="new-mission-btn">
-              + 创建任务
+              {t.missions.create}
             </button>
           </>
         }
@@ -121,21 +117,19 @@ export default function MissionControlPage() {
             />
           </div>
           <div className="flex gap-1.5">
-            {STATUS_TABS.map((t) => (
+            {STATUS_KEYS.map((k) => (
               <button
-                key={t.key}
-                className={`chip cursor-pointer ${tab === t.key ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
-                onClick={() => setTab(t.key)}
+                key={k}
+                className={`chip cursor-pointer ${tab === k ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
+                onClick={() => setTab(k)}
               >
-                {t.label}
+                {(t.missions.status as Record<string, string>)[k || 'all']}
               </button>
             ))}
           </div>
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0" data-testid="mission-list">
             {filtered.length === 0 && (
-              <div className="panel p-4 text-xs text-ink-dim text-center">
-                暂无任务。点击「+ 创建任务」规划一次卫星接收。
-              </div>
+              <div className="panel p-4 text-xs text-ink-dim text-center">{t.missions.empty}</div>
             )}
             {filtered.map((m) => (
               <MissionRow
@@ -152,7 +146,7 @@ export default function MissionControlPage() {
                     await gameApi.startMission(m.id)
                     await reload()
                   } catch (e) {
-                    alert(e instanceof Error ? e.message : String(e))
+                    alert(tr(e))
                   }
                 }}
               />
@@ -205,18 +199,25 @@ function MissionRow({
   onCancel: () => void
 }) {
   const aos = m.aos ? new Date(m.aos) : null
+  const { t } = useLang()
   return (
     <div className="panel px-3 py-2 flex items-center gap-3" data-testid={`mission-${m.id}`}>
-      <span className={`chip shrink-0 ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
+      <span className={`chip shrink-0 ${STATUS_COLORS[m.status] ?? ''}`}>
+        {(t.missions.status as Record<string, string>)[m.status] ?? m.status}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[13px] text-ink truncate">{m.satellite_name || `NORAD ${m.satellite_id}`}</span>
-          <span className="chip">{MISSION_TYPE_LABELS[m.type] ?? m.type}</span>
-          {m.auto && <span className="chip text-signal">自动</span>}
+          <span className="chip">
+            {(t.missions.type as Record<string, string>)[m.type] ?? m.type}
+          </span>
+          {m.auto && <span className="chip text-signal">{t.missions.auto}</span>}
         </div>
         <div className="text-[12px] data text-ink-dim mt-0.5">
-          {aos ? aos.toLocaleString() : '—'} · {Math.round(m.planned_duration_s / 60)}min · 最高 {m.max_elevation_deg.toFixed(0)}°
-          {m.frequency_hz ? ` · ${(m.frequency_hz / 1e6).toFixed(2)} MHz` : ''} · 站 {stationName(stations, m.station_id)}
+          {aos ? aos.toLocaleString() : '—'} · {fmt(t.missions.min, { n: Math.round(m.planned_duration_s / 60) })} ·{' '}
+          {fmt(t.missions.maxEl, { el: m.max_elevation_deg.toFixed(0) })}
+          {m.frequency_hz ? ` · ${(m.frequency_hz / 1e6).toFixed(2)} MHz` : ''} ·{' '}
+          {fmt(t.missions.at, { station: stationName(stations, m.station_id) })}
         </div>
       </div>
       <div className="text-right text-[12px] data shrink-0">
@@ -226,22 +227,22 @@ function MissionRow({
       <div className="flex gap-1.5 shrink-0">
         {m.status === 'active' && (
           <button className="btn btn-primary h-7 text-xs" onClick={onExecute}>
-            监视
+            {t.missions.monitor}
           </button>
         )}
         {m.status === 'planned' && (
           <>
             <button className="btn btn-primary h-7 text-xs" onClick={onStart} data-testid={`start-${m.id}`}>
-              启动
+              {t.missions.start}
             </button>
             <button className="btn btn-danger h-7 text-xs" onClick={onCancel}>
-              取消
+              {t.missions.cancel}
             </button>
           </>
         )}
         {(m.status === 'completed' || m.status === 'failed') && (
           <button className="btn h-7 text-xs" onClick={onExecute}>
-            详情
+            {t.missions.detail}
           </button>
         )}
       </div>
@@ -255,6 +256,8 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
   const simNow = useRef(0)
   const refreshCredits = useRefreshCredits()
   const notifiedDone = useRef(false)
+  const { lang, t: dict } = useLang()
+  const em = dict.missions.exec
   useMissionSfx(t?.mission.status, t?.phase)
 
   useEffect(() => {
@@ -288,7 +291,7 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
     <div className="w-80 shrink-0 panel overflow-y-auto" data-testid="mission-exec">
       <div className="panel-header">
         <span className="normal-case tracking-normal text-ink text-xs">
-          {t.phase === 'receiving' ? '● 接收中' : t.phase === 'waiting' ? '○ 等待过境' : '任务结束'}
+          {t.phase === 'receiving' ? em.receiving : t.phase === 'waiting' ? em.waiting : em.done}
         </span>
         <button className="text-ink-dim hover:text-ink" onClick={onClose}>
           <Icon name="close" size={13} />
@@ -297,16 +300,18 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
       <div className="p-3 space-y-3 text-xs">
         <div className="flex items-center justify-between">
           <span className="text-ink text-[13px]">{m.satellite_name}</span>
-          <span className={`chip ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
+          <span className={`chip ${STATUS_COLORS[m.status] ?? ''}`}>
+            {(dict.missions.status as Record<string, string>)[m.status] ?? m.status}
+          </span>
         </div>
 
         {t.phase === 'waiting' && t.seconds_to_aos !== undefined && (
           <div className="panel p-3 text-center">
-            <div className="text-ink-dim">距 AOS</div>
+            <div className="text-ink-dim">{em.toAos}</div>
             <div className="data text-2xl text-signal mt-1">
               {Math.floor(t.seconds_to_aos / 60)}:{String(Math.floor(t.seconds_to_aos % 60)).padStart(2, '0')}
             </div>
-            <div className="text-[12px] text-ink-dim mt-1">使用底部时间控制推进到过境窗口</div>
+            <div className="text-[12px] text-ink-dim mt-1">{em.pushTime}</div>
           </div>
         )}
 
@@ -317,16 +322,20 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
               <Compass az={t.azimuth_deg ?? 0} el={t.elevation_deg ?? 0} />
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 data">
-              <KV k="方位角" v={`${t.azimuth_deg?.toFixed(1)}°`} />
-              <KV k="仰角" v={`${t.elevation_deg?.toFixed(1)}°`} />
-              <KV k="距离" v={`${t.range_km?.toFixed(0)} km`} />
-              <KV k="多普勒" v={`${(t.doppler_hz ?? 0) >= 0 ? '+' : ''}${t.doppler_hz?.toFixed(0)} Hz`} />
+              <KV k={em.az} v={`${t.azimuth_deg?.toFixed(1)}°`} />
+              <KV k={em.el} v={`${t.elevation_deg?.toFixed(1)}°`} />
+              <KV k={em.range} v={`${t.range_km?.toFixed(0)} km`} />
+              <KV k={em.doppler} v={`${(t.doppler_hz ?? 0) >= 0 ? '+' : ''}${t.doppler_hz?.toFixed(0)} Hz`} />
             </div>
             {/* 信号强度 */}
             <div>
               <div className="flex justify-between text-[12px] text-ink-dim mb-1">
-                <span>SNR {t.snr_db?.toFixed(1)} dB（需 {t.mission.frequency_hz ? '' : ''}{(t.margin_db ?? 0) >= 0 ? '余量 +' : '余量 '}{t.margin_db?.toFixed(1)} dB）</span>
-                <span className="data">质量 {t.quality?.toFixed(0)}%</span>
+                <span>
+                  {(t.margin_db ?? 0) >= 0
+                    ? fmt(em.snrMarginOk, { snr: t.snr_db?.toFixed(1) ?? '—', margin: t.margin_db?.toFixed(1) ?? '—' })
+                    : fmt(em.snrMarginBad, { snr: t.snr_db?.toFixed(1) ?? '—', margin: t.margin_db?.toFixed(1) ?? '—' })}
+                </span>
+                <span className="data">{fmt(em.quality, { q: t.quality?.toFixed(0) ?? '—' })}</span>
               </div>
               <div className="h-2 rounded bg-ground-1 overflow-hidden">
                 <div
@@ -339,14 +348,14 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
             {/* 进度与数据 */}
             <div>
               <div className="flex justify-between text-[12px] text-ink-dim mb-1">
-                <span>任务进度</span>
+                <span>{em.progress}</span>
                 <span className="data">{((t.progress ?? 0) * 100).toFixed(1)}%</span>
               </div>
               <div className="h-2 rounded bg-ground-1 overflow-hidden">
                 <div className="h-full bg-signal" style={{ width: `${(t.progress ?? 0) * 100}%` }} />
               </div>
               <div className="flex justify-between mt-2 text-[12.5px] data">
-                <span className="text-ink-dim">数据缓存</span>
+                <span className="text-ink-dim">{em.dataCache}</span>
                 <span className="text-signal">{t.data_mb?.toFixed(2)} MB</span>
               </div>
             </div>
@@ -361,17 +370,26 @@ function MissionExecPanel({ missionId, onClose, onChanged }: { missionId: string
           <div className="space-y-2">
             {m.status === 'completed' ? (
               <div className="panel p-3 text-ok">
-                任务成功
+                {em.success}
                 <div className="text-[12.5px] data text-ink-dim mt-1.5 space-y-0.5">
-                  <div>数据 {(m.data_produced_mb as number)?.toFixed(2)} MB</div>
-                  <div>链路余量 {(m.result as any)?.avg_margin_db} dB · 覆盖 {((m.result as any)?.coverage ?? 0) * 100}%</div>
-                  <div className="text-warn">奖励 +₡{m.reward_credits} +{m.reward_rp} RP</div>
+                  <div>{fmt(em.data, { mb: (m.data_produced_mb as number)?.toFixed(2) })}</div>
+                  <div>
+                    {fmt(em.linkMargin, {
+                      margin: (m.result as any)?.avg_margin_db,
+                      cov: (((m.result as any)?.coverage ?? 0) * 100).toFixed(0),
+                    })}
+                  </div>
+                  <div className="text-warn">
+                    {fmt(em.reward, { credits: m.reward_credits, rp: m.reward_rp })}
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="panel p-3 text-danger">
-                任务失败
-                <div className="text-[12.5px] text-ink-dim mt-1">{m.failure_reason}</div>
+                {em.fail}
+                <div className="text-[12.5px] text-ink-dim mt-1">
+                  {translateFailure(lang, m.failure_reason)}
+                </div>
               </div>
             )}
           </div>
@@ -447,13 +465,14 @@ function CreateMissionModal({
   const [type, setType] = useState('capture')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const { t } = useLang()
 
   useEffect(() => {
     if (q.length < 1) {
       setResults([])
       return
     }
-    const t = window.setTimeout(async () => {
+    const timer = window.setTimeout(async () => {
       try {
         const r = await orbitApi.list('stations', q, 30, 0)
         setResults(r.items)
@@ -461,7 +480,7 @@ function CreateMissionModal({
         setResults([])
       }
     }, 300)
-    return () => window.clearTimeout(t)
+    return () => window.clearTimeout(timer)
   }, [q])
 
   const submit = async () => {
@@ -472,7 +491,7 @@ function CreateMissionModal({
       await gameApi.createMission({ save_id: saveId, station_id: stationId, satellite_id: sat.norad_id, type })
       onCreated()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+      setErr(tr(e))
     } finally {
       setBusy(false)
     }
@@ -481,22 +500,22 @@ function CreateMissionModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="create-mission-modal">
       <div className="panel w-[520px] max-w-[92vw] p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-ink">创建接收任务</h3>
+        <h3 className="text-sm font-semibold text-ink">{t.missions.modal.title}</h3>
 
         <div>
-          <label className="text-xs text-ink-dim">目标卫星（空间站分组搜索）</label>
+          <label className="text-xs text-ink-dim">{t.missions.modal.target}</label>
           {sat ? (
             <div className="flex items-center justify-between mt-1 panel px-2 py-1.5">
               <span className="text-sm text-ink">
                 {sat.name} <span className="text-ink-dim text-xs data">#{sat.norad_id}</span>
               </span>
               <button className="text-ink-dim hover:text-ink" onClick={() => setSat(null)}>
-                更换
+                {t.missions.modal.change}
               </button>
             </div>
           ) : (
             <>
-              <input className="input mt-1" placeholder="搜索名称/目录号…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+              <input className="input mt-1" placeholder={t.missions.modal.searchPh} value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
               <div className="mt-1 max-h-44 overflow-y-auto space-y-0.5">
                 {results.map((s) => (
                   <button
@@ -518,7 +537,7 @@ function CreateMissionModal({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="text-xs text-ink-dim">
-            地面站
+            {t.missions.modal.groundStation}
             <select className="input mt-1" value={stationId} onChange={(e) => setStationId(e.target.value)}>
               {stations.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -528,13 +547,13 @@ function CreateMissionModal({
             </select>
           </label>
           <label className="text-xs text-ink-dim">
-            任务类型
+            {t.missions.modal.missionType}
             <select className="input mt-1" value={type} onChange={(e) => setType(e.target.value)}>
-              {Object.entries(MISSION_TYPE_LABELS)
-                .filter(([k]) => k !== 'decode')
-                .map(([k, v]) => (
+              {Object.keys(MISSION_TYPE_LABELS)
+                .filter((k) => k !== 'decode')
+                .map((k) => (
                   <option key={k} value={k}>
-                    {v}
+                    {(t.missions.type as Record<string, string>)[k] ?? k}
                   </option>
                 ))}
             </select>
@@ -543,17 +562,14 @@ function CreateMissionModal({
 
         {err && <div className="text-xs text-danger">{err}</div>}
 
-        <p className="text-[12px] text-ink-dim leading-relaxed">
-          任务将自动规划该卫星下一次过境（72h 内）。系统会校验设备频段覆盖、站点冲突与计算机并发。
-          模拟接收结果由简化链路模型 + 种子化抖动决定（SIMULATED_RF）。
-        </p>
+        <p className="text-[12px] text-ink-dim leading-relaxed">{t.missions.modal.note}</p>
 
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>
-            取消
+            {t.common.cancel}
           </button>
           <button className="btn btn-primary" disabled={!sat || busy} onClick={() => void submit()} data-testid="mission-submit">
-            {busy ? '规划中…' : '规划任务'}
+            {busy ? t.missions.modal.planning : t.missions.modal.submit}
           </button>
         </div>
       </div>
@@ -580,6 +596,7 @@ function SchedulerPanel({
   const [suggestions, setSuggestions] = useState<ScheduleSuggestion[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const { t } = useLang()
 
   const preview = async () => {
     setBusy(true)
@@ -593,7 +610,7 @@ function SchedulerPanel({
       })
       setSuggestions(r.suggestions)
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e))
+      setMsg(tr(e))
     } finally {
       setBusy(false)
     }
@@ -609,11 +626,11 @@ function SchedulerPanel({
         rules: { min_max_elevation: minEl, prefer_uncollected: preferUncollected ? 1.5 : 0, max_missions: 8 },
         apply: true,
       })
-      setMsg(`已创建 ${r.created} 个自动任务`)
+      setMsg(fmt(t.missions.sched.created, { n: r.created }))
       setSuggestions(null)
       onApplied()
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e))
+      setMsg(tr(e))
     } finally {
       setBusy(false)
     }
@@ -621,7 +638,7 @@ function SchedulerPanel({
 
   return (
     <div className="w-72 shrink-0 panel overflow-y-auto" data-testid="scheduler-panel">
-      <div className="panel-header">自动调度（确定性规则）</div>
+      <div className="panel-header">{t.missions.sched.title}</div>
       <div className="p-3 space-y-2.5 text-xs">
         <select className="input !h-7 text-[12.5px]" value={stationId} onChange={(e) => setStationId(e.target.value)}>
           {stations.map((s) => (
@@ -631,20 +648,20 @@ function SchedulerPanel({
           ))}
         </select>
         <label className="block text-ink-dim">
-              预测窗口 {hours}h
+          {fmt(t.missions.sched.window, { h: hours })}
           <input type="range" min={6} max={72} step={6} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="w-full accent-cyan-400" />
         </label>
         <label className="block text-ink-dim">
-              最低过境仰角 {minEl}°
+          {fmt(t.missions.sched.minEl, { el: minEl })}
           <input type="range" min={5} max={60} step={5} value={minEl} onChange={(e) => setMinEl(Number(e.target.value))} className="w-full accent-cyan-400" />
         </label>
         <label className="flex items-center gap-2 text-ink-dim">
           <input type="checkbox" checked={preferUncollected} onChange={(e) => setPreferUncollected(e.target.checked)} className="accent-cyan-400" />
-              优先未收藏卫星
+          {t.missions.sched.preferFav}
         </label>
         <div className="flex gap-2">
           <button className="btn h-7 text-[12.5px] flex-1" disabled={busy} onClick={() => void preview()} data-testid="scheduler-preview">
-            生成建议
+            {t.missions.sched.preview}
           </button>
           <button
             className="btn btn-primary h-7 text-[12.5px] flex-1"
@@ -652,13 +669,13 @@ function SchedulerPanel({
             onClick={() => void apply()}
             data-testid="scheduler-apply"
           >
-            应用并创建
+            {t.missions.sched.apply}
           </button>
         </div>
         {msg && <div className="text-[12.5px] text-signal">{msg}</div>}
         {suggestions && (
           <div className="space-y-1">
-            {suggestions.length === 0 && <div className="text-[12.5px] text-ink-dim">窗口内无满足规则的过境</div>}
+            {suggestions.length === 0 && <div className="text-[12.5px] text-ink-dim">{t.missions.sched.noSuggestion}</div>}
             {suggestions.map((s) => (
               <div key={s.satellite_id + s.aos} className="panel px-2 py-1.5 flex items-center justify-between">
                 <div className="min-w-0">
@@ -676,17 +693,17 @@ function SchedulerPanel({
           </div>
         )}
         <p className="text-[12px] text-ink-faint leading-relaxed pt-2 bg-ground-1 rounded px-2 py-1.5">
-          调度为确定性规则算法（频段覆盖/冲突/仰角/收藏加权），设备安全约束不交由任何模型判定。
+          {t.missions.sched.note}
         </p>
       </div>
     </div>
   )
 }
 
-
 /** 运营统计条：全部来自真实任务记录（/api/game/stats）。 */
 function StatsStrip({ saveId }: { saveId: string }) {
   const [stats, setStats] = useState<Record<string, unknown> | null>(null)
+  const { t } = useLang()
   useEffect(() => {
     if (!saveId) return
     let alive = true
@@ -707,24 +724,25 @@ function StatsStrip({ saveId }: { saveId: string }) {
   const rate = stats.success_rate as number | null
   const daily = (stats.daily as { date: string; completed: number }[]) ?? []
   const maxDaily = Math.max(1, ...daily.map((d) => d.completed))
+  const st = t.missions.stats
 
   return (
     <div className="panel px-4 py-2.5 flex items-center gap-6 shrink-0 rise" data-testid="stats-strip">
-      <Metric k="成功率" v={rate === null || rate === undefined ? '—' : `${Math.round(rate * 100)}%`} />
-      <Metric k="已完成" v={String(stats.missions_completed)} />
-      <Metric k="24 小时" v={String(stats.completed_last_24h)} />
-      <Metric k="连胜" v={String(stats.success_streak)} />
-      <Metric k="数据" v={`${(stats.data_total_mb as number).toFixed(1)} MB`} />
-      <Metric k="发现卫星" v={String(stats.discovered)} />
-      <Metric k="地面站" v={String(stats.stations)} />
+      <Metric k={st.successRate} v={rate === null || rate === undefined ? '—' : `${Math.round(rate * 100)}%`} />
+      <Metric k={st.completed} v={String(stats.missions_completed)} />
+      <Metric k={st.last24h} v={String(stats.completed_last_24h)} />
+      <Metric k={st.streak} v={String(stats.success_streak)} />
+      <Metric k={st.data} v={`${(stats.data_total_mb as number).toFixed(1)} MB`} />
+      <Metric k={st.discovered} v={String(stats.discovered)} />
+      <Metric k={st.stations} v={String(stats.stations)} />
       {/* 近 7 天迷你柱状图 */}
-      <div className="flex items-end gap-1 ml-auto h-8" title="近 7 天每日完成任务数">
+      <div className="flex items-end gap-1 ml-auto h-8" title={st.dailyTitle}>
         {daily.map((d) => (
           <div
             key={d.date}
             className="w-2 rounded-sm bg-signal/40"
             style={{ height: `${Math.max(8, (d.completed / maxDaily) * 100)}%` }}
-            title={`${d.date}：${d.completed} 次`}
+            title={fmt(st.dailyTip, { date: d.date, n: d.completed })}
           />
         ))}
       </div>

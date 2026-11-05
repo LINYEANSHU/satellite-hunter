@@ -25,10 +25,15 @@ def _assumptions() -> dict:
         return json.load(f)
 
 
-def _interp_atm_loss(el_deg: float) -> float:
+@lru_cache(maxsize=1)
+def _atm_table() -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """大气损耗插值表（任务积分/遥测逐采样点调用，缓存避免每次重建列表）。"""
     table = _assumptions()["atmospheric_loss_db_by_elevation"]
-    xs = [p["el"] for p in table]
-    ys = [p["loss"] for p in table]
+    return tuple(float(p["el"]) for p in table), tuple(float(p["loss"]) for p in table)
+
+
+def _interp_atm_loss(el_deg: float) -> float:
+    xs, ys = _atm_table()
     if el_deg <= xs[0]:
         return ys[0]
     if el_deg >= xs[-1]:

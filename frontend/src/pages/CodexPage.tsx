@@ -4,20 +4,14 @@ import { gameApi, type CollectionEntryView } from '../api/game'
 import PageHeader from '../components/PageHeader'
 import Icon from '../components/Icon'
 import { useGameStore } from '../stores/gameStore'
+import { useLang, fmt } from '../i18n'
 
-const CATEGORY_LABELS: Record<string, string> = {
-  space_station: '空间站',
-  weather: '气象卫星',
-  communications: '通信卫星',
-  science: '科学实验卫星',
-  amateur: '业余无线电卫星',
-  other: '其他航天器',
-}
+const CATEGORY_KEYS = ['space_station', 'weather', 'communications', 'science', 'amateur', 'other'] as const
 
-const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
-  tracked: { label: '已追踪', cls: 'text-signal border-signal/40' },
-  received: { label: '已接收', cls: 'text-ok border-ok/40' },
-  decoded: { label: '已解码', cls: 'text-signal border-signal/40' },
+const STATUS_BADGE_CLS: Record<string, string> = {
+  tracked: 'text-signal border-signal/40',
+  received: 'text-ok border-ok/40',
+  decoded: 'text-signal border-signal/40',
 }
 
 /** 卫星图鉴（需求 7.1/7.2）：分类、发现状态、收藏。 */
@@ -27,6 +21,7 @@ export default function CodexPage() {
   const [entries, setEntries] = useState<CollectionEntryView[]>([])
   const [filter, setFilter] = useState('')
   const [onlyFav, setOnlyFav] = useState(false)
+  const { t } = useLang()
 
   const reload = useCallback(async () => {
     if (!saveId) return
@@ -46,12 +41,17 @@ export default function CodexPage() {
     return g
   }, [entries, filter, onlyFav])
 
+  const catLabel = (key: string, fallback?: string) =>
+    (t.codex.cats as Record<string, string>)[key] ?? fallback ?? key
+  const statusLabel = (key: string) =>
+    key === 'received' ? t.codex.received : key === 'decoded' ? t.codex.decoded : t.codex.tracked
+
   if (!saveId) {
     return (
       <div className="h-full panel flex items-center justify-center text-sm text-ink-dim">
-        未进入存档
+        {t.missions.noSave}
         <button className="btn ml-3" onClick={() => nav('/')}>
-          返回主菜单
+          {t.missions.backMenu}
         </button>
       </div>
     )
@@ -62,32 +62,34 @@ export default function CodexPage() {
       <div className="panel overflow-hidden relative mb-3 h-28 shrink-0">
         <img
           src="/photos/sts-134-international-space-station-after-undocking.jpg"
-          alt="国际空间站实拍（NASA STS-134 任务）"
+          alt={t.codex.heroAlt}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-ground-0/50 flex items-end">
           <div className="px-4 pb-2.5">
-            <div className="text-title font-semibold text-ink">卫星图鉴</div>
+            <div className="text-title font-semibold text-ink">{t.codex.title}</div>
             <div className="text-[12px] text-ink/90">
-              发现 {entries.length} 颗 · 已接收 {entries.filter((e) => e.status !== 'tracked').length} 颗 ·
-              页首影像：ISS（NASA，公有领域）
+              {fmt(t.codex.summary, {
+                n: entries.length,
+                r: entries.filter((e) => e.status !== 'tracked').length,
+              })}
             </div>
           </div>
         </div>
       </div>
       <PageHeader
-        title="收藏分类"
-        subtitle="状态流转：已追踪 → 已接收 → 已解码"
+        title={t.codex.section}
+        subtitle={t.codex.subtitle}
         right={
           <>
             <button className={`chip cursor-pointer ${onlyFav ? 'text-warn border-warn/50' : ''}`} onClick={() => setOnlyFav(!onlyFav)}>
-              只看收藏
+              {t.codex.onlyFav}
             </button>
             <select className="input !w-36" value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">全部类别</option>
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+              <option value="">{t.codex.allCats}</option>
+              {CATEGORY_KEYS.map((k) => (
                 <option key={k} value={k}>
-                  {v}
+                  {catLabel(k)}
                 </option>
               ))}
             </select>
@@ -96,20 +98,18 @@ export default function CodexPage() {
       />
 
       {entries.length === 0 && (
-        <div className="panel p-6 text-sm text-ink-dim text-center">
-          图鉴还是空的。在轨道探索页选择卫星或创建任务后，发现的卫星会记录在这里。
-        </div>
+        <div className="panel p-6 text-sm text-ink-dim text-center">{t.codex.empty}</div>
       )}
 
       <div className="space-y-4 pb-6">
         {Object.entries(grouped).map(([cat, list]) => (
           <section key={cat}>
             <h3 className="text-xs text-ink-dim uppercase tracking-[0.2em] mb-2">
-              {CATEGORY_LABELS[cat] ?? cat} · {list.length}
+              {catLabel(cat)} · {list.length}
             </h3>
             <div className="grid grid-cols-4 gap-2">
               {list.map((e) => {
-                const badge = STATUS_BADGES[e.status] ?? STATUS_BADGES.tracked
+                const cls = STATUS_BADGE_CLS[e.status] ?? STATUS_BADGE_CLS.tracked
                 return (
                   <div
                     key={e.satellite_id}
@@ -124,21 +124,21 @@ export default function CodexPage() {
                           await gameApi.favorite(e.satellite_id, saveId)
                           void reload()
                         }}
-                        title={e.favorite ? '取消收藏' : '收藏'}
+                        title={e.favorite ? t.codex.favRemove : t.codex.favAdd}
                       >
                         <Icon name="star" size={14} />
                       </button>
                     </div>
                     <div className="data text-[12px] text-ink-dim mt-1">#{e.satellite_id}</div>
                     <div className="flex items-center gap-1.5 mt-2">
-                      <span className={`chip ${badge.cls}`}>{badge.label}</span>
+                      <span className={`chip ${cls}`}>{statusLabel(e.status)}</span>
                       {e.successful_missions > 0 && (
-                        <span className="chip text-signal">{e.successful_missions} 次成功</span>
+                        <span className="chip text-signal">{fmt(t.codex.success, { n: e.successful_missions })}</span>
                       )}
                     </div>
                     {e.first_observed_at && (
                       <div className="text-[12px] text-ink-dim mt-1.5 data">
-                        首次观测 {new Date(e.first_observed_at).toLocaleDateString()}
+                        {fmt(t.codex.firstObs, { date: new Date(e.first_observed_at).toLocaleDateString() })}
                       </div>
                     )}
                   </div>

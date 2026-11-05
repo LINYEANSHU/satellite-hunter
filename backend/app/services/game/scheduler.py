@@ -16,8 +16,9 @@ from app.core.errors import AppError
 from app.db.models import CollectionEntry, Mission, Station
 from app.services.game import rf_model
 from app.services.game.equipment import station_by_category
-from app.services.game.missions import _entry_of, _next_pass
+from app.services.orbit import passes as passes_mod
 from app.services.orbit.catalog import catalog_service
+from app.services.orbit.propagator import group_propagator_cache
 
 
 @dataclass
@@ -87,9 +88,18 @@ def preview_schedule(db: Session, station_id: str, hours: float, rules: Schedule
     )
 
     candidates: list[dict] = []
+    # 整组共用一个传播器（原先每颗卫星重建 Satrec），并把扫描窗口收敛到
+    # min(end, start+72h)：首个 aos ≥ end 的过境本来就会被过滤，结果等价。
+    prop = group_propagator_cache.get(rules.group, data.fetched_at, data_entries)
+    scan_end = min(end, start + timedelta(hours=72))
     for entry in data_entries:
         try:
-            p = _next_pass(entry.norad_id, station, start, station.min_elevation_deg)
+            sat = prop.get_satrec(entry.norad_id)
+            ps = passes_mod.predict_passes(
+                sat, entry.norad_id, station.lat, station.lon, station.alt_m / 1000.0,
+                start, scan_end, max(station.min_elevation_deg, 5.0), max_passes=1,
+            )
+            p = ps[0] if ps else None
         except Exception:
             continue
         if p is None or p.aos >= end:

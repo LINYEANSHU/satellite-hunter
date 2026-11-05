@@ -6,6 +6,8 @@ import SatelliteLayer from './SatelliteLayer'
 import OrbitPath from './OrbitPath'
 import StationLayer from './StationLayer'
 import FrameDriver from './FrameDriver'
+import TrailLayer from './TrailLayer'
+import SelectionMarker from './SelectionMarker'
 import { sceneToLatLon } from './coords'
 import { useCatalogStore } from '../stores/catalogStore'
 import { useStationStore } from '../stores/stationStore'
@@ -53,6 +55,8 @@ export default function GlobeScene() {
         <Earth onPointerDown={handleEarthPointer} />
         <SatelliteLayer onPick={handleSatPick} />
         <OrbitPath />
+        <TrailLayer />
+        <SelectionMarker />
         <StationLayer />
       </Suspense>
 

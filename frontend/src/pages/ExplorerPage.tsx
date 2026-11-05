@@ -4,6 +4,7 @@ import GlobeScene from '../three/GlobeScene'
 import SatelliteList from '../components/SatelliteList'
 import SatelliteDetail from '../components/SatelliteDetail'
 import { useStationStore } from '../stores/stationStore'
+import { useLang, fmt } from '../i18n'
 
 /** 3D 地球卫星探索主页（需求 11.3 布局：左列表 / 中地球 / 右详情 / 底时间控制）。 */
 export default function ExplorerPage() {
@@ -13,6 +14,7 @@ export default function ExplorerPage() {
   const placementMode = useStationStore((s) => s.placementMode)
   const setPlacementMode = useStationStore((s) => s.setPlacementMode)
   const bootstrap = useStationStore((s) => s.bootstrap)
+  const { t } = useLang()
 
   useEffect(() => {
     void bootstrap()
@@ -31,7 +33,9 @@ export default function ExplorerPage() {
   const submitStation = useCallback(async () => {
     if (!place) return
     await useStationStore.getState().addStation({
-      name: name.trim() || `站-${place.lat.toFixed(1)},${place.lon.toFixed(1)}`,
+      name:
+        name.trim() ||
+        fmt(t.explorer.defaultName, { lat: place.lat.toFixed(1), lon: place.lon.toFixed(1) }),
       lat: place.lat,
       lon: place.lon,
       alt_m: 0,
@@ -39,7 +43,7 @@ export default function ExplorerPage() {
     })
     setPlace(null)
     setPlacementMode(false)
-  }, [place, name, minEl, setPlacementMode])
+  }, [place, name, minEl, setPlacementMode, t])
 
   return (
     <div className="h-full flex flex-col gap-2 min-h-0">
@@ -55,10 +59,10 @@ export default function ExplorerPage() {
 
           {/* 顶部悬浮状态条 */}
           <div className="absolute top-2 left-2 right-2 flex items-center gap-2 pointer-events-none">
-            <span className="tag bg-ground-1/90">拖拽旋转 · 滚轮缩放 · 点击卫星选中</span>
+            <span className="tag bg-ground-1/90">{t.explorer.hint}</span>
             {placementMode && (
               <span className="chip bg-warn/10 border-warn/50 text-warn animate-pulseSoft">
-                选址模式：点击地球表面放置地面站
+                {t.explorer.placing}
               </span>
             )}
           </div>
@@ -69,9 +73,9 @@ export default function ExplorerPage() {
               className={`btn h-8 ${placementMode ? 'btn-primary' : ''}`}
               onClick={() => setPlacementMode(!placementMode)}
               data-testid="place-station-btn"
-              title="在地球上选择地面站位置"
+              title={t.explorer.placeTitle}
             >
-              {placementMode ? '取消选址' : '选址建站'}
+              {placementMode ? t.explorer.cancelPlace : t.explorer.place}
             </button>
             <StationQuickList />
           </div>
@@ -87,23 +91,23 @@ export default function ExplorerPage() {
       {place && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="place-station-modal">
           <div className="panel w-80 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-ink">建立地面站</h3>
+            <h3 className="text-sm font-semibold text-ink">{t.explorer.placeModal}</h3>
             <div className="data text-xs text-signal">
-              纬度 {place.lat.toFixed(3)}° · 经度 {place.lon.toFixed(3)}°
+              {fmt(t.explorer.latLon, { lat: place.lat.toFixed(3), lon: place.lon.toFixed(3) })}
             </div>
             <label className="block text-xs text-ink-dim">
-              站名
+              {t.explorer.name}
               <input
                 className="input mt-1"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="如：北京站"
+                placeholder={t.explorer.namePh}
                 autoFocus
                 data-testid="station-name-input"
               />
             </label>
             <label className="block text-xs text-ink-dim">
-              最小可用仰角 {minEl}°
+              {fmt(t.explorer.minEl, { el: minEl })}
               <input
                 type="range"
                 min={0}
@@ -113,15 +117,13 @@ export default function ExplorerPage() {
                 className="w-full mt-1 accent-cyan-400"
               />
             </label>
-            <p className="text-[12px] text-ink-dim leading-relaxed">
-              位置影响可见卫星范围、过境次数与最大仰角（需求 4.1）。虚拟站点，真实接收模式需使用实测坐标。
-            </p>
+            <p className="text-[12px] text-ink-dim leading-relaxed">{t.explorer.note}</p>
             <div className="flex gap-2 justify-end">
               <button className="btn" onClick={() => setPlace(null)}>
-                取消
+                {t.common.cancel}
               </button>
               <button className="btn btn-primary" onClick={() => void submitStation()} data-testid="station-submit">
-                建立
+                {t.explorer.create}
               </button>
             </div>
           </div>
@@ -136,6 +138,7 @@ function StationQuickList() {
   const activeId = useStationStore((s) => s.activeStationId)
   const setActive = useStationStore((s) => s.setActive)
   const remove = useStationStore((s) => s.removeStation)
+  const { t } = useLang()
 
   if (!stations.length) return null
   return (
@@ -156,7 +159,7 @@ function StationQuickList() {
               e.stopPropagation()
               void remove(st.id)
             }}
-            title="删除地面站"
+            title={t.explorer.delStation}
           >
             <Icon name="close" size={13} />
           </button>

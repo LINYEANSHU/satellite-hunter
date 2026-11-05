@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">Satellite Hunter: Ground Station</title>
+  <desc id="hero-desc">Earth with two satellite orbits on a deep-space background, a ground station with its coverage footprint, a pass link and countdown; the project name and one-line pitch on the left.</desc>
+
+  <defs>
+    <clipPath id="earth-clip">
+      <circle cx="940" cy="470" r="260"/>
+    </clipPath>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1200" height="360" rx="24" fill="#05070d"/>
+
+  <!-- 星点（克制的非必要装饰） -->
+  <g fill="#8b98ab">
+    <circle cx="640" cy="52" r="1.2" opacity=".30"/>
+    <circle cx="700" cy="128" r="1.5" opacity=".22"/>
+    <circle cx="760" cy="42" r="1.1" opacity=".40"/>
+    <circle cx="880" cy="70" r="1.4" opacity=".25"/>
+    <circle cx="1040" cy="46" r="1.2" opacity=".38"/>
+    <circle cx="1120" cy="120" r="1.5" opacity=".20"/>
+    <circle cx="1160" cy="66" r="1.1" opacity=".34"/>
+    <circle cx="905" cy="130" r="1.0" opacity=".30"/>
+    <circle cx="585" cy="200" r="1.2" opacity=".22"/>
+    <circle cx="1105" cy="260" r="1.1" opacity=".28"/>
+  </g>
+
+  <!-- 轨道 -->
+  <g fill="none">
+    <circle cx="940" cy="470" r="330" stroke="#243247" stroke-width="1.5"/>
+    <circle cx="940" cy="470" r="390" stroke="#1c2736" stroke-width="1.5" stroke-dasharray="4 7"/>
+    <path d="M 805 169 A 330 330 0 0 1 1150 215" stroke="#22d3ee" stroke-width="2" opacity=".75"/>
+  </g>
+
+  <!-- 地球 -->
+  <circle cx="940" cy="470" r="260" fill="#0b1220" stroke="#243247" stroke-width="1.5"/>
+  <circle cx="940" cy="470" r="205" fill="none" stroke="#1c2736" stroke-width="1" stroke-dasharray="3 6" opacity=".55"/>
+
+  <!-- 覆盖圈 -->
+  <g clip-path="url(#earth-clip)">
+    <circle cx="860" cy="223" r="140" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="5 7" opacity=".38"/>
+    <circle cx="860" cy="223" r="92" fill="#4ade80" opacity=".05"/>
+  </g>
+
+  <!-- 地面站 -->
+  <g>
+    <circle cx="860" cy="223" r="7" fill="#05070d" stroke="#4ade80" stroke-width="2"/>
+    <circle cx="860" cy="223" r="2.6" fill="#4ade80"/>
+    <text x="884" y="228" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#8b98ab">GROUND STATION</text>
+  </g>
+
+  <!-- 卫星（主） -->
+  <g transform="translate(805 169) rotate(20)">
+    <rect x="-6" y="-6" width="12" height="12" rx="2" fill="#22d3ee"/>
+    <rect x="-24" y="-2.5" width="14" height="5" rx="1.5" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity=".8"/>
+    <rect x="10" y="-2.5" width="14" height="5" rx="1.5" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity=".8"/>
+  </g>
+
+  <!-- 卫星（次） -->
+  <circle cx="1008" cy="86" r="3.2" fill="#8b98ab" opacity=".85"/>
+
+  <!-- 过境链路 -->
+  <line x1="805" y1="169" x2="860" y2="223" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 5" opacity=".7"/>
+
+  <!-- 倒计时 -->
+  <g>
+    <rect x="950" y="118" width="112" height="32" rx="16" fill="#0c1016" stroke="#22d3ee" stroke-width="1" opacity=".9"/>
+    <text x="1006" y="140" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#22d3ee">T-04:32</text>
+  </g>
+
+  <!-- 标题区 -->
+  <g transform="translate(64 0)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <text x="0" y="86" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="3" fill="#22d3ee" opacity=".9">REAL ORBITS · REAL PHYSICS</text>
+    <text x="0" y="146" font-size="48" font-weight="700" fill="#e8eef6">Satellite Hunter</text>
+    <text x="0" y="192" font-size="26" fill="#e8eef6" opacity=".92">Track real satellites from the ground</text>
+    <text x="0" y="234" font-size="20" fill="#8b98ab">Real SGP4 orbits, pass forecasts, link budgets,</text>
+    <text x="0" y="262" font-size="20" fill="#8b98ab">and SatDump decoding — no radio hardware required.</text>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">
+      <rect x="0" y="290" width="110" height="30" rx="15" fill="#0c1016" stroke="#243247"/>
+      <text x="55" y="311" text-anchor="middle" fill="#8b98ab">FastAPI</text>
+      <rect x="122" y="290" width="176" height="30" rx="15" fill="#0c1016" stroke="#243247"/>
+      <text x="210" y="311" text-anchor="middle" fill="#8b98ab">React·Three.js</text>
+      <rect x="310" y="290" width="84" height="30" rx="15" fill="#0c1016" stroke="#243247"/>
+      <text x="352" y="311" text-anchor="middle" fill="#8b98ab">SGP4</text>
+      <rect x="406" y="290" width="132" height="30" rx="15" fill="#0c1016" stroke="#243247"/>
+      <text x="472" y="311" text-anchor="middle" fill="#8b98ab">CelesTrak</text>
+    </g>
+  </g>
+</svg>

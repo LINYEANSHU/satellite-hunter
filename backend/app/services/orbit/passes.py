@@ -45,9 +45,17 @@ class Pass:
 
 
 def _elevation_series(
-    sat: Satrec, station_ecef: np.ndarray, times_s: np.ndarray, jd0: float, fr0: float
+    sat: Satrec,
+    station_ecef: np.ndarray,
+    times_s: np.ndarray,
+    jd0: float,
+    fr0: float,
+    enu: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """批量计算相对时间(秒)数组对应的仰角与方位角。"""
+    """批量计算相对时间(秒)数组对应的仰角与方位角。
+
+    enu: 预计算站心 ENU 矩阵；对同一测站反复调用时传入以省去重复推导。
+    """
     n = len(times_s)
     days = times_s / 86400.0
     jd = np.full(n, jd0) + np.floor(days)
@@ -62,7 +70,7 @@ def _elevation_series(
     r_teme = np.atleast_2d(r_teme).reshape(n, 3)
     v_teme = np.atleast_2d(v_teme).reshape(n, 3)
 
-    gmst_arr = np.array([tf.gmst_deg(j + f) for j, f in zip(jd, fr)])
+    gmst_arr = tf.gmst_deg_array(jd, fr)
     # 批量旋转（gmst 每点不同，用向量化公式）
     theta = gmst_arr * math.pi / 180.0
     c, s = np.cos(theta), np.sin(theta)
@@ -74,7 +82,7 @@ def _elevation_series(
     v_ecef[:, 0] += tf.EARTH_OMEGA * r_ecef[:, 1]
     v_ecef[:, 1] -= tf.EARTH_OMEGA * r_ecef[:, 0]
 
-    angles = tf.look_angles(station_ecef, r_ecef, v_ecef)
+    angles = tf.look_angles(station_ecef, r_ecef, v_ecef, enu=enu)
     el = np.array([a.elevation_deg for a in angles])
     az = np.array([a.azimuth_deg for a in angles])
     el[err != 0] = -90.0  # 传播失败的点视为不可见
@@ -82,14 +90,15 @@ def _elevation_series(
 
 
 def _bisect_cross(
-    sat, station_ecef, jd0, fr0, t_lo_s: float, t_hi_s: float, min_el: float
+    sat, station_ecef, jd0, fr0, t_lo_s: float, t_hi_s: float, min_el: float,
+    enu: np.ndarray | None = None,
 ) -> float:
     """在 [t_lo, t_hi] 内二分仰角=min_el 的交点（t_lo 低于、t_hi 高于）。"""
     for _ in range(20):
         mid = 0.5 * (t_lo_s + t_hi_s)
         if t_hi_s - t_lo_s < 1.0:
             return mid
-        el_mid, _ = _elevation_series(sat, station_ecef, np.array([mid]), jd0, fr0)
+        el_mid, _ = _elevation_series(sat, station_ecef, np.array([mid]), jd0, fr0, enu=enu)
         if el_mid[0] >= min_el:
             t_hi_s = mid
         else:
@@ -98,21 +107,25 @@ def _bisect_cross(
 
 
 def _max_elevation(
-    sat, station_ecef, jd0, fr0, t_aos_s: float, t_los_s: float
+    sat, station_ecef, jd0, fr0, t_aos_s: float, t_los_s: float,
+    enu: np.ndarray | None = None,
 ) -> tuple[float, float, float]:
-    """区间内最大仰角与对应时刻（三分搜索）。返回 (t, max_el, az)。"""
+    """区间内最大仰角与对应时刻（三分搜索）。返回 (t, max_el, az)。
+
+    两个探测点合并为一次批量调用；30 次迭代对 ≤20min 过境弧段的
+    收敛精度 <5ms（远小于 30s 采样步长），与原 60 次迭代结果一致。
+    """
     lo, hi = t_aos_s, t_los_s
-    for _ in range(60):
+    for _ in range(30):
         m1 = lo + (hi - lo) / 3.0
         m2 = hi - (hi - lo) / 3.0
-        el1, _ = _elevation_series(sat, station_ecef, np.array([m1]), jd0, fr0)
-        el2, _ = _elevation_series(sat, station_ecef, np.array([m2]), jd0, fr0)
-        if el1[0] < el2[0]:
+        el_pair, _ = _elevation_series(sat, station_ecef, np.array([m1, m2]), jd0, fr0, enu=enu)
+        if el_pair[0] < el_pair[1]:
             lo = m1
         else:
             hi = m2
     t = 0.5 * (lo + hi)
-    el, az = _elevation_series(sat, station_ecef, np.array([t]), jd0, fr0)
+    el, az = _elevation_series(sat, station_ecef, np.array([t]), jd0, fr0, enu=enu)
     return float(t), float(el[0]), float(az[0])
 
 
@@ -132,11 +145,12 @@ def predict_passes(
     if end <= start:
         return []
     station_ecef = tf.geodetic_to_ecef(station_lat, station_lon, station_alt_km)
+    enu = tf.station_enu_matrix(station_ecef)  # 全程复用，避免每个采样点重复推导
     jd0, fr0 = tf.jday_utc(start)
     total_s = (end - start).total_seconds()
 
     times = np.arange(0.0, total_s + coarse_step_s, coarse_step_s)
-    el, az = _elevation_series(sat, station_ecef, times, jd0, fr0)
+    el, az = _elevation_series(sat, station_ecef, times, jd0, fr0, enu=enu)
 
     passes: list[Pass] = []
     inside = el[0] >= min_elevation_deg
@@ -145,28 +159,29 @@ def predict_passes(
     for k in range(1, len(times)):
         was, now = el[k - 1] >= min_elevation_deg, el[k] >= min_elevation_deg
         if not was and now:
-            seg_start = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg)
+            seg_start = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu)
         elif was and not now and seg_start is not None:
-            seg_end = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg)
-            _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, seg_end, min_elevation_deg)
+            seg_end = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu)
+            _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, seg_end, min_elevation_deg, enu=enu)
             seg_start = None
             if len(passes) >= max_passes:
                 break
         elif was and now and k == len(times) - 1 and seg_start is not None:
             # 窗口结束仍在视野内：以最后采样为界
-            _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, float(times[k]), min_elevation_deg)
+            _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, float(times[k]), min_elevation_deg, enu=enu)
 
     return passes
 
 
 def _emit(
-    passes, sat, satellite_id, station_ecef, jd0, fr0, start_dt, t_aos_s, t_los_s, min_el
+    passes, sat, satellite_id, station_ecef, jd0, fr0, start_dt, t_aos_s, t_los_s, min_el,
+    enu: np.ndarray | None = None,
 ):
     if t_los_s - t_aos_s < 10.0:  # 过短（低于 10 秒）不作为有效过境
         return
-    el_aos, az_aos = _elevation_series(sat, station_ecef, np.array([t_aos_s]), jd0, fr0)
-    el_los, az_los = _elevation_series(sat, station_ecef, np.array([t_los_s]), jd0, fr0)
-    t_tca_s, max_el, az_tca = _max_elevation(sat, station_ecef, jd0, fr0, t_aos_s, t_los_s)
+    el_aos, az_aos = _elevation_series(sat, station_ecef, np.array([t_aos_s]), jd0, fr0, enu=enu)
+    el_los, az_los = _elevation_series(sat, station_ecef, np.array([t_los_s]), jd0, fr0, enu=enu)
+    t_tca_s, max_el, az_tca = _max_elevation(sat, station_ecef, jd0, fr0, t_aos_s, t_los_s, enu=enu)
 
     passes.append(
         Pass(

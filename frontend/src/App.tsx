@@ -4,7 +4,10 @@ import { api, type Capabilities } from './api/client'
 import { useGameStore, useTimeStore } from './stores/gameStore'
 import TimeBar from './components/TimeBar'
 import GameNotifications, { TutorialOverlay } from './components/GameNotifications'
+import PassReminder from './components/PassReminder'
 import Icon from './components/Icon'
+import LanguageToggle from './components/LanguageToggle'
+import { useLang } from './i18n'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
 import StationPage from './pages/StationPage'
@@ -17,22 +20,23 @@ import SettingsPage from './pages/SettingsPage'
 import StatusBar from './components/StatusBar'
 import { sfxToggleMute } from './lib/sfx'
 
-const NAV = [
-  { to: '/explorer', label: '轨道探索', icon: 'satellite' },
-  { to: '/station', label: '地面站', icon: 'dish' },
-  { to: '/equipment', label: '设备管理', icon: 'wrench' },
-  { to: '/missions', label: '任务控制', icon: 'route' },
-  { to: '/signallab', label: '信号实验室', icon: 'wave' },
-  { to: '/codex', label: '卫星图鉴', icon: 'book' },
-  { to: '/achievements', label: '成就研究', icon: 'trophy' },
-  { to: '/settings', label: '系统状态', icon: 'gear' },
-]
+const NAV_KEYS = [
+  { to: '/explorer', key: 'explorer', icon: 'satellite' },
+  { to: '/station', key: 'station', icon: 'dish' },
+  { to: '/equipment', key: 'equipment', icon: 'wrench' },
+  { to: '/missions', key: 'missions', icon: 'route' },
+  { to: '/signallab', key: 'signallab', icon: 'wave' },
+  { to: '/codex', key: 'codex', icon: 'book' },
+  { to: '/achievements', key: 'achievements', icon: 'trophy' },
+  { to: '/settings', key: 'settings', icon: 'gear' },
+] as const
 
 function Shell() {
   const [caps, setCaps] = useState<Capabilities | null>(null)
   const [backendDown, setBackendDown] = useState(false)
   const saveName = useGameStore((s) => s.saveName)
   const [muteState, setMuteState] = useState(sfxMutedState())
+  const { t } = useLang()
 
   // 键盘快捷键：空格暂停，1-4 倍速，N 回到现在
   useEffect(() => {
@@ -97,9 +101,10 @@ function Shell() {
           </span>
         )}
         <StatusBar caps={caps} backendDown={backendDown} />
+        <LanguageToggle />
         <button
           className="text-ink-dim hover:text-ink p-1.5"
-          title={muteState ? '开启音效' : '静音'}
+          title={muteState ? t.topbar.soundOn : t.topbar.soundOff}
           onClick={() => setMuteState(sfxToggleMute())}
         >
           <Icon name={muteState ? 'mute' : 'sound'} size={15} />
@@ -109,11 +114,11 @@ function Shell() {
       <div className="flex-1 flex min-h-0">
         {/* 左侧导航 */}
         <nav className="w-14 flex flex-col items-center gap-0.5 py-2 bg-ground-1">
-          {NAV.map((n) => (
+          {NAV_KEYS.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
-              title={n.label}
+              title={t.nav[n.key]}
               className={({ isActive }) =>
                 `w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
                   isActive
@@ -128,7 +133,7 @@ function Shell() {
           <div className="flex-1" />
           <NavLink
             to="/"
-            title="主菜单"
+            title={t.nav.mainMenu}
             className="w-10 h-10 rounded-md flex items-center justify-center text-ink-dim hover:text-ink hover:bg-ground-2"
           >
             <Icon name="home" size={19} />
@@ -147,6 +152,7 @@ function Shell() {
       <TimeBar />
 
       <GameNotifications />
+      <PassReminder />
       <TutorialOverlay />
     </div>
   )

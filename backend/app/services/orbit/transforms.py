@@ -39,6 +39,20 @@ def gmst_deg(jd_ut1: float) -> float:
     return g % 360.0
 
 
+def gmst_deg_array(jd, fr):
+    """gmst_deg 的向量化版本（numpy 批量），公式完全一致。
+
+    jd/fr 为等长数组（儒略日整数与小数部分），返回度数组。热路径避免
+    逐点 Python 循环。
+    """
+    jd = np.asarray(jd, dtype=float)
+    fr = np.asarray(fr, dtype=float)
+    d = (jd + fr) - 2451545.0
+    t = d / 36525.0
+    g = 280.46061837 + 360.98564736629 * d + 0.000387933 * t * t - t * t * t / 38710000.0
+    return np.mod(g, 360.0)
+
+
 def jday_utc(dt) -> tuple[float, float]:
     """datetime(UTC, naive) → (jd 整数部分, 小数部分)。与 sgp4.api.jday 一致。"""
     from sgp4.api import jday
@@ -131,14 +145,17 @@ def station_enu_matrix(station_ecef: np.ndarray) -> np.ndarray:
 
 
 def look_angles(
-    station_ecef: np.ndarray, sat_ecef, sat_vel_ecef=None
+    station_ecef: np.ndarray, sat_ecef, sat_vel_ecef=None, enu: np.ndarray | None = None
 ) -> LookAngle | list[LookAngle]:
     """站心观察角：方位/仰角/距离（可选距离变化率，用于多普勒）。
 
     sat_ecef/sat_vel_ecef 支持 (3,) 或 (N,3)。
+    enu: 预计算的站心 ENU 旋转矩阵（station_enu_matrix 的结果）。
+    对同一测站批量/反复调用时传入可避免每次重复推导（热路径优化）。
     """
     topoc = np.asarray(sat_ecef, dtype=float) - station_ecef
-    enu = station_enu_matrix(station_ecef)  # (3,3)
+    if enu is None:
+        enu = station_enu_matrix(station_ecef)  # (3,3)
     if topoc.ndim == 1:
         e, n, u = enu @ topoc
         rng = float(math.sqrt(e * e + n * n + u * u))

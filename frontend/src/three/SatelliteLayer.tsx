@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrameCallback } from './FrameDriver'
-import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Points } from 'three'
+import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Points, Sphere, Vector3 } from 'three'
 import { useCatalogStore } from '../stores/catalogStore'
 import { useTimeStore } from '../stores/gameStore'
 
@@ -33,6 +33,10 @@ export default function SatelliteLayer({ onPick }: { onPick?: (noradId: number |
     const positionsAttr = new BufferAttribute(new Float32Array(MAX * 3), 3)
     positionsAttr.setUsage(DynamicDrawUsage)
     geometry.setAttribute('position', positionsAttr)
+    // 固定包围球（场景单位：地球半径=1，最大视距 14）：该层 frustumCulled=false，
+    // 包围球只影响拾取的快速剔除；若不预置，three 每帧都会 computeBoundingSphere
+    // （O(N)），2500 点 × 60fps 纯属浪费。
+    geometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), 100)
     return { geometry, positionsAttr }
   }, [])
 
@@ -66,7 +70,6 @@ export default function SatelliteLayer({ onPick }: { onPick?: (noradId: number |
     }
     geometry.setDrawRange(0, i)
     positionsAttr.needsUpdate = true
-    geometry.computeBoundingSphere()
   })
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {

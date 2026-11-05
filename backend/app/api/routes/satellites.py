@@ -1,6 +1,7 @@
 """卫星目录与轨道 API。"""
 from __future__ import annotations
 
+import calendar
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
@@ -13,7 +14,7 @@ from app.db import get_db
 from app.services.orbit import passes as passes_mod
 from app.services.orbit.catalog import GROUP_LABELS, catalog_service
 from app.services.orbit.omm import parse_tle_text
-from app.services.orbit.propagator import Propagator
+from app.services.orbit.propagator import Propagator, group_propagator_cache
 
 router = APIRouter(prefix="/satellites", tags=["satellites"])
 
@@ -40,7 +41,8 @@ def positions(
     if not entries:
         return {"t": 0, "items": []}
 
-    prop = Propagator(entries)
+    # 传播器按目录版本缓存：同一版本数据复用 Satrec/SatrecArray（高频轮询热路径）
+    prop = group_propagator_cache.get(group, data.fetched_at, entries)
     t = _parse_at(at)
     pos = prop.positions_ecef(t)
     items = []
@@ -48,7 +50,7 @@ def positions(
         p = pos.get(e.norad_id)
         if p and not p.error and p.r_ecef is not None:
             items.append([e.norad_id, round(float(p.r_ecef[0]), 2), round(float(p.r_ecef[1]), 2), round(float(p.r_ecef[2]), 2)])
-    return {"t": int(t.timestamp() * 1000), "items": items}
+    return {"t": _utc_millis(t), "items": items}
 
 
 # ---------------------------------------------------------------- 分组状态
@@ -172,13 +174,13 @@ def satellite_track(
         raise AppError(404, "SATELLITE_NOT_FOUND", f"未找到卫星 {norad_id}")
     center = _parse_at(at)
     prop = Propagator([entry])
-    from app.services.orbit import transforms as tf
 
     n = int(minutes * 60 / step_s)
     times = [center + timedelta(seconds=(i - n) * step_s) for i in range(2 * n + 1)]
+    # 单次批量传播（原先逐时刻调用，2n+1 次 SGP4 → 1 次批量）
+    batch = prop.positions_ecef_batch(times, ids=[norad_id])
     points = []
-    for t in times:
-        pos = prop.positions_ecef(t).get(norad_id)
+    for t, pos in zip(times, batch.get(norad_id, [])):
         if pos is None or pos.error:
             continue
         points.append(
@@ -226,9 +228,35 @@ def satellite_passes(
         raise AppError(422, "ORBIT_INIT_FAILED", "该卫星轨道根数无法初始化 SGP4")
 
     start = _parse_at(at) if at else datetime.utcnow()
-    passes = passes_mod.predict_passes(
-        sat, norad_id, s_lat, s_lon, s_alt, start, start + timedelta(hours=hours), s_min_el
+    end = start + timedelta(hours=hours)
+
+    # 过境预测缓存：窗口起点对齐 600s 使「当前时刻」类高频调用可命中；
+    # 键含星历 epoch（数据版本）与全部影响结果的参数。对齐使窗口早于
+    # start 最多 600s，返回时过滤已完全结束（los <= start）的过境，
+    # 语义保持「start 起仍可见的过境」。
+    from app.services.orbit.pass_cache import floor_to, pass_forecast_cache
+
+    s_start = floor_to(start, 600.0)
+    epoch_ver = entry.epoch.isoformat() if entry.epoch else str(entry.omm.get("EPOCH") or "")
+    cache_key = (
+        "sat",
+        norad_id,
+        epoch_ver,
+        round(s_lat, 4),
+        round(s_lon, 4),
+        round(s_alt, 2),
+        round(s_min_el, 2),
+        float(hours),
+        s_start,
     )
+    passes = [
+        p
+        for p in pass_forecast_cache.get_or_compute(
+            cache_key,
+            lambda: passes_mod.predict_passes(sat, norad_id, s_lat, s_lon, s_alt, s_start, end, s_min_el),
+        )
+        if p.los > start
+    ]
     return {
         "norad_id": norad_id,
         "station": {"lat": s_lat, "lon": s_lon, "alt_km": s_alt, "min_elevation_deg": s_min_el},
@@ -256,12 +284,16 @@ def import_tle(body: dict) -> dict:
 
 
 def _parse_at(at: str) -> datetime:
-    if not at:
-        return datetime.utcnow()
-    try:
-        dt = datetime.fromisoformat(at.replace("Z", "+00:00"))
-        if dt.tzinfo:
-            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-        return dt
-    except ValueError:
-        raise AppError(400, "BAD_TIME", f"时间格式无效: {at!r}")
+    """统一走共享解析：Z/偏移量显式换算为 UTC，避免时区语义分歧。"""
+    from app.core.timeparse import parse_utc_at
+
+    return parse_utc_at(at)
+
+
+def _utc_millis(dt: datetime) -> int:
+    """naive UTC datetime → Unix 毫秒（显式按 UTC 计算）。
+
+    datetime.timestamp() 对 naive 值按本地时区解释，在非 UTC 时区
+    （如 UTC+8）会产生 8 小时偏移，破坏前端采样锚点对齐。
+    """
+    return calendar.timegm(dt.timetuple()) * 1000 + dt.microsecond // 1000

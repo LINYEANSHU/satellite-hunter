@@ -12,7 +12,7 @@ from app.db import get_db
 from app.db.models import Station
 from app.services.orbit import passes as passes_mod
 from app.services.orbit.catalog import catalog_service
-from app.services.orbit.propagator import Propagator
+from app.services.orbit.propagator import group_propagator_cache
 
 router = APIRouter(prefix="/stations", tags=["stations"])
 
@@ -121,28 +121,50 @@ def station_passes(
 
     data = catalog_service.get_group(group)
     entries = data.entries[:500]
-    prop = Propagator(entries)
+    # 传播器按目录版本缓存（与 /satellites/positions 共享），避免每次请求重建
+    prop = group_propagator_cache.get(group, data.fetched_at, entries)
 
-    start = (
-        datetime.fromisoformat(at.replace("Z", "+00:00")).replace(tzinfo=None)
-        if at
-        else datetime.utcnow()
-    )
-    end = start + timedelta(hours=hours)
+    # 统一共享解析：非 UTC 偏移（如 +08:00）会被换算到 UTC（原写法直接丢弃偏移）
+    from app.core.timeparse import parse_utc_at
+
+    start = parse_utc_at(at)
     use_min_el = min_el if min_el is not None else s.min_elevation_deg
 
-    all_passes = []
-    for nid in prop.ids:
-        sat = prop.get_satrec(nid)
-        try:
-            ps = passes_mod.predict_passes(
-                sat, nid, s.lat, s.lon, s.alt_m / 1000.0, start, end, use_min_el, max_passes=20
-            )
-        except Exception:
-            continue
-        all_passes.extend(ps)
+    # 批量过境预测缓存（最重 CPU 路径：最多 500 颗 × 窗口粗扫+细化）。
+    # 键含站坐标（站可被 PATCH 移动）、目录版本 fetched_at 与对齐后的窗口。
+    from app.services.orbit.pass_cache import floor_to, pass_forecast_cache
 
-    all_passes.sort(key=lambda p: p.aos)
+    s_start = floor_to(start, 600.0)
+    end = s_start + timedelta(hours=hours)
+    cache_key = (
+        "station",
+        station_id,
+        group,
+        round(s.lat, 4),
+        round(s.lon, 4),
+        round(s.alt_m, 1),
+        round(use_min_el, 2),
+        float(hours),
+        s_start,
+        data.fetched_at,
+    )
+
+    def _compute() -> list:
+        out = []
+        for nid in prop.ids:
+            sat = prop.get_satrec(nid)
+            try:
+                ps = passes_mod.predict_passes(
+                    sat, nid, s.lat, s.lon, s.alt_m / 1000.0, s_start, end, use_min_el, max_passes=20
+                )
+            except Exception:
+                continue
+            out.extend(ps)
+        out.sort(key=lambda p: p.aos)
+        return out
+
+    # 过滤已完全结束的过境（对齐窗口可能早于请求起点，见 pass_cache 模块注释）
+    all_passes = [p for p in pass_forecast_cache.get_or_compute(cache_key, _compute) if p.los > start]
     return {
         "station_id": station_id,
         "group": group,

@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 from datetime import datetime, timedelta
@@ -22,7 +23,7 @@ from app.services.game.equipment import find_def, station_by_category
 from app.services.orbit import passes as passes_mod
 from app.services.orbit.catalog import catalog_service
 from app.services.orbit.propagator import Propagator
-from app.services.orbit.transforms import geodetic_to_ecef, look_angles
+from app.services.orbit.transforms import geodetic_to_ecef, look_angles, station_enu_matrix
 
 REWARDS = {
     "tutorial": {"credits": 150, "rp": 5, "xp": 20},
@@ -40,8 +41,11 @@ _INTEGRATION_STEP_S = 20.0
 
 
 def _seed_for(save_id: str, satellite_id: int, aos: datetime) -> int:
+    """确定性种子。注意不能用内建 hash()：Python 对 str 的哈希在进程间
+    随机化（PYTHONHASHSEED），会导致同一任务重启后仿真结果漂移，
+    违背"惰性确定性仿真"设计。这里用稳定的 SHA-256。"""
     base = f"{save_id}:{satellite_id}:{aos.isoformat()}"
-    return abs(hash(base)) % (2**31)
+    return int.from_bytes(hashlib.sha256(base.encode("utf-8")).digest()[:4], "big") % (2**31)
 
 
 def _entry_of(satellite_id: int):
@@ -49,12 +53,15 @@ def _entry_of(satellite_id: int):
 
 
 def _storage_used_mb(db: Session, station_id: str) -> float:
-    rows = (
-        db.query(Mission)
+    # 聚合下推到 SQL，避免加载全部已完成任务行
+    from sqlalchemy import func
+
+    total = (
+        db.query(func.coalesce(func.sum(Mission.data_produced_mb), 0.0))
         .filter(Mission.station_id == station_id, Mission.status == "completed")
-        .all()
+        .scalar()
     )
-    return sum(m.data_produced_mb for m in rows)
+    return float(total or 0.0)
 
 
 def _storage_capacity_gb(db: Session, station) -> float:
@@ -285,11 +292,13 @@ def _pointing_error(rf: rf_model.StationRF, rng: random.Random, el: float, az_ra
 
 
 def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
-    """从 AOS 到 until（≤LOS）按步长采样：仰角/链路/数据率。"""
+    """从 AOS 到 until（≤LOS）按步长采样：仰角/链路/数据率。
+
+    传播使用一次多时刻批量调用（原先逐采样点调用 SGP4）。
+    """
     from app.services.game.events import player_effects
 
     prop = _station_propagator(mission.satellite_id)
-    sat = prop.get_satrec(mission.satellite_id)
     entry = _entry_of(mission.satellite_id)
     group = next(iter(entry.groups), "active")
     sig = sig or rf_model.signal_assumptions(mission.satellite_id, group)
@@ -305,17 +314,26 @@ def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
     t0 = mission.aos
     t_end = min(until, mission.los)
 
-    samples = []
-    prev_az = prev_el = None
-    for i in range(n + 1):
+    st_ecef = geodetic_to_ecef(station.lat, station.lon, station.alt_m / 1000.0)  # 循环外仅算一次
+    enu = station_enu_matrix(st_ecef)  # 站心 ENU 矩阵整段过境复用（原先每采样点重复推导）
+
+    times: list[datetime] = []
+    i = 0
+    while True:
         t = t0 + timedelta(seconds=duration * i / n)
         if t > t_end:
             break
-        pos = prop.positions_ecef(t).get(mission.satellite_id)
+        times.append(t)
+        i += 1
+
+    samples = []
+    prev_az = prev_el = None
+    nid = mission.satellite_id
+    batch = prop.positions_ecef_batch(times, ids=[nid])
+    for idx, (t, pos) in enumerate(zip(times, batch.get(nid, []))):
         if pos is None or pos.error:
             continue
-        st_ecef = geodetic_to_ecef(station.lat, station.lon, station.alt_m / 1000.0)
-        la = look_angles(st_ecef, pos.r_ecef, pos.v_ecef)
+        la = look_angles(st_ecef, pos.r_ecef, pos.v_ecef, enu=enu)
         az_rate = el_rate = 0.0
         if prev_az is not None:
             daz = abs(((la.azimuth_deg - prev_az + 180) % 360) - 180)
@@ -323,7 +341,7 @@ def _pass_samples(db: Session, mission: Mission, station, sig, until: datetime):
             el_rate = abs(la.elevation_deg - prev_el) / _INTEGRATION_STEP_S
         prev_az, prev_el = la.azimuth_deg, la.elevation_deg
 
-        pe = _pointing_error(rf, random.Random(f"{mission.seed}:{i}"), la.elevation_deg, az_rate, el_rate)
+        pe = _pointing_error(rf, random.Random(f"{mission.seed}:{idx}"), la.elevation_deg, az_rate, el_rate)
         link = rf_model.compute_link(rf, sig, la.elevation_deg, la.range_km, la.range_rate_km_s, pe, snr_bonus)
         samples.append(
             {

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { phase4Api, type GameEventView } from '../api/game'
 import { sfx } from '../lib/sfx'
 import { useGameStore, useTimeStore } from '../stores/gameStore'
+import { useLang, fmt } from '../i18n'
 
 /** 全局游戏事件提示（需求 8.3：事件明确标记为虚拟）+ 首次教程。 */
 export default function GameNotifications() {
@@ -10,6 +11,7 @@ export default function GameNotifications() {
   const location = useLocation()
   const [toasts, setToasts] = useState<{ id: number; text: string; kind: string }[]>([])
   const lastCheckedDay = useRef<string>('')
+  const { lang, t } = useLang()
 
   useEffect(() => {
     if (!saveId || location.pathname === '/') return
@@ -22,81 +24,70 @@ export default function GameNotifications() {
         const items = (r.fired || []).map((e: GameEventView, i: number) => ({
           id: Date.now() + i,
           kind: String(e.kind ?? ''),
-          text: describeEvent(e),
+          text: describeEvent(e, t.events),
         }))
-        if (items.length) setToasts((t) => [...t, ...items])
+        if (items.length) setToasts((prev) => [...prev, ...items])
       })
       .catch(() => {})
-  }, [saveId, location.pathname])
+  }, [saveId, location.pathname, lang, t])
 
   useEffect(() => {
     if (!toasts.length) return
-    const t = window.setTimeout(() => setToasts((ts) => ts.slice(1)), 9000)
-    return () => window.clearTimeout(t)
+    const timer = window.setTimeout(() => setToasts((ts) => ts.slice(1)), 9000)
+    return () => window.clearTimeout(timer)
   }, [toasts])
 
   return (
     <div className="fixed bottom-14 right-3 z-50 space-y-2 w-72 pointer-events-none">
-      {toasts.map((t) => (
-        <div key={t.id} className="panel px-3 py-2 text-xs border-warn/40 bg-ground-1" data-testid="event-toast">
+      {toasts.map((toast) => (
+        <div key={toast.id} className="panel px-3 py-2 text-xs border-warn/40 bg-ground-1" data-testid="event-toast">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="chip text-signal border-signal/40">GAME_EVENT</span>
+            <span className="chip text-signal border-signal/40">{t.events.tag}</span>
           </div>
-          <div className="text-ink leading-relaxed">{t.text}</div>
+          <div className="text-ink leading-relaxed">{toast.text}</div>
         </div>
       ))}
     </div>
   )
 }
 
-function describeEvent(e: GameEventView): string {
+function describeEvent(e: GameEventView, ev: import('../i18n').Dict['events']): string {
+  const station = String(e.station ?? '')
+  const equipment = String(e.equipment ?? '')
   switch (e.kind) {
     case 'equipment_fault':
-      return `设备故障（虚拟事件）：${e.station} 的「${e.equipment}」损坏，请前往地面站页维修。`
+      return fmt(ev.equipmentFault, { station, equipment })
     case 'bonus_window':
-      return `临时挑战（虚拟事件）：${e.station} 未来 24h 任务奖励 +50%！`
+      return fmt(ev.bonusWindow, { station })
     case 'power_surge':
-      return `电力波动（虚拟事件）：${e.station}`
+      return fmt(ev.powerSurge, { station })
     case 'storage_warning':
-      return `存储空间不足（虚拟事件）：${e.station}`
+      return fmt(ev.storageWarning, { station })
     default:
-      return `游戏事件：${e.kind}`
+      return fmt(ev.generic, { kind: String(e.kind ?? '') })
   }
 }
 
 /** 首次进入游戏教程（简单步骤卡，localStorage 记忆）。 */
 export function TutorialOverlay() {
   const saveId = useGameStore((s) => s.saveId)
+  const { t } = useLang()
   const [step, setStep] = useState<number>(() => (localStorage.getItem('sh-tutorial-done') ? -1 : 0))
   if (!saveId || step < 0) return null
 
   const steps = [
-    {
-      title: '欢迎来到 Satellite Hunter',
-      body: '你将运营一座地面站，追踪真实卫星、接收信号、建设全球网络。先熟悉三个核心页面。',
-      hint: '',
-    },
-    {
-      title: '① 轨道探索',
-      body: '左侧选择卫星（ISS、天宫等真实目标），点击地球建站，右侧查看实时位置与未来 48 小时过境预测。',
-      hint: '试试底部时间控制：1000× 加速快进过境。',
-    },
-    {
-      title: '② 任务控制',
-      body: '为目标卫星创建接收任务，用「自动调度」批量规划。任务执行时注意 SNR 与数据缓存。',
-      hint: '任务奖励 Credits 与研究点数。',
-    },
-    {
-      title: '③ 地面站与设备',
-      body: '用 Credits 采购更好的天线/SDR/转台并安装，链路余量会显著改善。开始你的第一次任务吧！',
-      hint: '本教程只显示一次。',
-    },
+    { title: t.tutorial.s1t, body: t.tutorial.s1b, hint: '' },
+    { title: t.tutorial.s2t, body: t.tutorial.s2b, hint: t.tutorial.s2h },
+    { title: t.tutorial.s3t, body: t.tutorial.s3b, hint: t.tutorial.s3h },
+    { title: t.tutorial.s4t, body: t.tutorial.s4b, hint: t.tutorial.s4h },
   ]
   const s = steps[step]
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center" data-testid="tutorial">
       <div className="panel w-[420px] max-w-[92vw] p-5">
-        <div className="text-signal text-[12px] data tracking-[0.3em] mb-2">新手指引 {step + 1} / {steps.length}</div>
+        <div className="text-signal text-[12px] data tracking-[0.3em] mb-2">
+          {fmt(t.tutorial.progress, { n: step + 1, total: steps.length })}
+        </div>
         <h3 className="text-lg font-semibold text-ink mb-2">{s.title}</h3>
         <p className="text-sm text-ink leading-relaxed">{s.body}</p>
         {s.hint && <p className="text-xs text-ink-dim mt-2">{s.hint}</p>}
@@ -108,7 +99,7 @@ export function TutorialOverlay() {
               setStep(-1)
             }}
           >
-            跳过
+            {t.tutorial.skip}
           </button>
           {step === steps.length - 1 && (
             <button
@@ -130,7 +121,7 @@ export function TutorialOverlay() {
                 setStep(-1)
               }}
             >
-              生成新手任务链
+              {t.tutorial.seed}
             </button>
           )}
           <button
@@ -143,7 +134,7 @@ export function TutorialOverlay() {
               } else setStep(step + 1)
             }}
           >
-            {step === steps.length - 1 ? '跳过，开始游戏' : '下一步'}
+            {step === steps.length - 1 ? t.tutorial.finish : t.tutorial.next}
           </button>
         </div>
       </div>

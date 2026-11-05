@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type Capabilities } from '../api/client'
 import PageHeader from '../components/PageHeader'
+import { useLang, fmt } from '../i18n'
 
 /** 设置与系统状态：实时探测后端能力。 */
 export default function SettingsPage() {
   const [caps, setCaps] = useState<Capabilities | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   const refresh = useCallback(() => {
     setLoading(true)
@@ -25,11 +27,11 @@ export default function SettingsPage() {
   return (
     <div className="h-full overflow-auto">
       <PageHeader
-        title="系统状态与设置"
-        subtitle="环境能力探测 · 数据目录 · 依赖状态"
+        title={t.settings.title}
+        subtitle={t.settings.subtitle}
         right={
           <button className="btn" onClick={refresh} disabled={loading}>
-            {loading ? '检测中…' : '↻ 重新检测'}
+            {loading ? t.settings.detecting : t.settings.refresh}
           </button>
         }
       />
@@ -39,27 +41,27 @@ export default function SettingsPage() {
       {caps && (
         <div className="grid grid-cols-2 gap-3 max-w-4xl">
           <section className="panel">
-            <div className="panel-header">应用</div>
+            <div className="panel-header">{t.settings.app}</div>
             <div className="p-3 text-sm space-y-1.5">
-              <Row k="名称" v={caps.app.name} />
-              <Row k="后端版本" v={caps.app.version} />
-              <Row k="Python" v={caps.app.python} />
-              <Row k="平台" v={caps.app.platform} />
-              <Row k="数据目录" v={caps.data_dir} mono />
+              <Row k={t.settings.name} v={caps.app.name} />
+              <Row k={t.settings.version} v={caps.app.version} />
+              <Row k={t.settings.python} v={caps.app.python} />
+              <Row k={t.settings.platform} v={caps.app.platform} />
+              <Row k={t.settings.dataDir} v={caps.data_dir} mono />
             </div>
           </section>
 
           <section className="panel">
-            <div className="panel-header">SatDump（卫星解码）</div>
+            <div className="panel-header">{t.settings.satdumpSection}</div>
             <div className="p-3 text-sm space-y-1.5">
               <Row
-                k="状态"
-                v={caps.satdump.installed ? '已安装' : '未安装'}
+                k={t.settings.status}
+                v={caps.satdump.installed ? t.settings.installed : t.settings.notInstalled}
                 cls={caps.satdump.installed ? 'text-ok' : 'text-warn'}
               />
-              <Row k="版本" v={caps.satdump.version ?? '—'} />
-              <Row k="来源" v={caps.satdump.source ?? '—'} />
-              {caps.satdump.installed && <Row k="路径" v={caps.satdump.bin ?? '—'} mono />}
+              <Row k={t.settings.ver} v={caps.satdump.version ?? '—'} />
+              <Row k={t.settings.source} v={caps.satdump.source ?? '—'} />
+              {caps.satdump.installed && <Row k={t.settings.path} v={caps.satdump.bin ?? '—'} mono />}
               {!caps.satdump.installed && (
                 <p className="text-xs text-ink-dim leading-relaxed pt-1  mt-1">
                   {caps.satdump.note}
@@ -69,21 +71,21 @@ export default function SettingsPage() {
           </section>
 
           <section className="panel">
-            <div className="panel-header">轨道数据</div>
+            <div className="panel-header">{t.settings.orbit}</div>
             <div className="p-3 text-sm space-y-1.5">
-              <Row k="缓存目录" v={caps.orbit.cache_dir} mono />
-              <Row k="缓存刷新间隔" v={`${caps.orbit.cache_ttl_hours} 小时`} />
-              <Row k="已缓存分组" v={caps.orbit.cached_groups.join(', ') || '（空）'} />
-              <Row k="配置分组" v={caps.orbit.configured_groups.join(', ')} />
+              <Row k={t.settings.cacheDir} v={caps.orbit.cache_dir} mono />
+              <Row k={t.settings.ttl} v={fmt(t.settings.hoursN, { n: caps.orbit.cache_ttl_hours })} />
+              <Row k={t.settings.cachedGroups} v={caps.orbit.cached_groups.join(', ') || t.settings.emptyGroups} />
+              <Row k={t.settings.configGroups} v={caps.orbit.configured_groups.join(', ')} />
             </div>
           </section>
 
           <section className="panel">
-            <div className="panel-header">磁盘</div>
+            <div className="panel-header">{t.settings.disk}</div>
             <div className="p-3 text-sm space-y-1.5">
-              <Row k="剩余" v={`${caps.disk.free_gb} GB`} />
-              <Row k="总容量" v={`${caps.disk.total_gb} GB`} />
-              <Row k="前端构建产物" v={caps.frontend_built ? '存在（单端口模式可用）' : '未构建'} />
+              <Row k={t.settings.free} v={`${caps.disk.free_gb} GB`} />
+              <Row k={t.settings.total} v={`${caps.disk.total_gb} GB`} />
+              <Row k={t.settings.frontendBuild} v={caps.frontend_built ? t.settings.builtYes : t.settings.builtNo} />
             </div>
           </section>
         </div>

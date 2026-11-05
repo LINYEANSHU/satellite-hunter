@@ -1,4 +1,5 @@
 /** 后端 API 客户端。开发环境经 vite 代理；打包后由后端同源伺服。 */
+import { getLang, translateError } from '../i18n'
 
 export interface HealthInfo {
   status: string
@@ -49,7 +50,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
     })
   } catch (e) {
-    throw new ApiError(0, 'NETWORK', '无法连接后端服务 (127.0.0.1:8000)。请确认后端已启动。')
+    throw new ApiError(0, 'NETWORK', translateError(getLang(), 'network', 'NETWORK'))
   }
   if (!resp.ok) {
     let code = 'HTTP_ERROR'

@@ -6,6 +6,7 @@ import Icon from '../components/Icon'
 import { useGameStore } from '../stores/gameStore'
 import { useStationStore } from '../stores/stationStore'
 import { useCatalogStore } from '../stores/catalogStore'
+import { useLang, fmt, tr } from '../i18n'
 import StationScene, { setSceneStation } from '../three/StationScene'
 
 /** 地面站：3D 场景（转台实时指向选中卫星）+ 设备槽位管理。 */
@@ -19,6 +20,7 @@ export default function StationPage() {
   const selectedSatId = useCatalogStore((s) => s.selectedId)
   const [items, setItems] = useState<EquipmentItem[]>([])
   const [busy, setBusy] = useState(false)
+  const { t } = useLang()
 
   const reload = useCallback(async () => {
     if (!saveId) return
@@ -54,7 +56,7 @@ export default function StationPage() {
       await fn()
       await reload()
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      alert(tr(e))
     } finally {
       setBusy(false)
     }
@@ -64,9 +66,9 @@ export default function StationPage() {
     return (
       <div className="h-full panel flex items-center justify-center">
         <div className="text-center text-sm text-ink-dim">
-          未进入存档
+          {t.station.noSave}
           <button className="btn ml-3" onClick={() => nav('/')}>
-            返回主菜单
+            {t.station.backMenu}
           </button>
         </div>
       </div>
@@ -76,8 +78,8 @@ export default function StationPage() {
   return (
     <div className="h-full flex flex-col gap-3 min-h-0">
       <PageHeader
-        title="地面站"
-        subtitle="3D 场景 · 设备槽位 · 转台实时指向选中的卫星"
+        title={t.station.title}
+        subtitle={t.station.subtitle}
         right={
           stations.length > 1 ? (
             <select className="input !w-40" value={activeId ?? ''} onChange={(e) => setActive(e.target.value)}>
@@ -88,7 +90,7 @@ export default function StationPage() {
               ))}
             </select>
           ) : (
-            <span className="text-[12px] text-ink-dim">选中卫星后，转台将实时跟踪其方位与仰角</span>
+            <span className="text-[12px] text-ink-dim">{t.station.rotHint}</span>
           )
         }
       />
@@ -97,15 +99,15 @@ export default function StationPage() {
         <div className="panel p-6 text-sm text-ink-dim flex-1 flex flex-col items-center justify-center gap-4">
           <img
             src="/photos/antennas-at-awarua-satellite-ground-station.jpg"
-            alt="真实卫星地面站的天线阵"
+            alt={t.station.arrayPhoto}
             className="max-h-48 rounded-lg object-cover"
           />
           <p>
-            还没有地面站。前往
+            {t.station.noStation}
             <button className="btn btn-primary mx-2 h-7 text-xs" onClick={() => nav('/explorer')}>
-              轨道探索
+              {t.station.goExplorer}
             </button>
-            页点击「选址建站」。
+            {t.station.noStationTail}
           </p>
         </div>
       ) : (
@@ -121,36 +123,36 @@ export default function StationPage() {
                 </div>
                 {selectedSatId && (
                   <div className="tag bg-signal/15 text-signal" data-testid="tracking-hint">
-                    转台跟踪 NORAD {selectedSatId}
+                    {fmt(t.station.tracking, { id: selectedSatId })}
                   </div>
                 )}
               </div>
               <div className="absolute bottom-2.5 right-2.5 pointer-events-none">
-                <span className="tag bg-ground-1/90">示意图 · 档位随设备变化</span>
+                <span className="tag bg-ground-1/90">{t.station.demoNote}</span>
               </div>
             </div>
 
             {/* 站点概览 + 真实照片 */}
             <div className="grid grid-cols-3 gap-3 shrink-0">
               <section className="panel col-span-2">
-                <div className="panel-header">站点参数</div>
+                <div className="panel-header">{t.station.params}</div>
                 <div className="p-3 text-[13px] grid grid-cols-3 gap-x-4 gap-y-1.5">
-                  <Spec k="最小仰角" v={`${station.min_elevation_deg}°`} />
-                  <Spec k="状态" v={station.status === 'active' ? '运行中' : station.status} cls="text-ok" />
-                  <Spec k="类型" v={station.is_virtual ? '虚拟站' : '真实站'} />
-                  <Spec k="维护" v={`${Math.round(station.maintenance)}%`} />
-                  <Spec k="设备" v={`${Object.values(slots).filter(Boolean).length}/7 类`} />
-                  <Spec k="建站成本" v={nStationCost(stations, station.id)} />
+                  <Spec k={t.station.minEl} v={`${station.min_elevation_deg}°`} />
+                  <Spec k={t.station.status} v={station.status === 'active' ? t.station.running : station.status} cls="text-ok" />
+                  <Spec k={t.station.type} v={station.is_virtual ? t.station.virtual : t.station.real} />
+                  <Spec k={t.station.maint} v={`${Math.round(station.maintenance)}%`} />
+                  <Spec k={t.station.equip} v={fmt(t.station.equipN, { n: Object.values(slots).filter(Boolean).length })} />
+                  <Spec k={t.station.cost} v={nStationCost(stations, station.id, t)} />
                 </div>
               </section>
               <div className="panel overflow-hidden relative min-h-[104px]">
                 <img
                   src="/photos/erdfunkstelle-raisting-2.jpg"
-                  alt="Erdfunkstelle Raisting 28.5 米抛物面天线"
+                  alt={t.station.antennaPhoto}
                   className="absolute inset-0 w-full h-full object-cover opacity-80"
                 />
                 <span className="absolute bottom-1.5 left-2 text-[12px] text-ink/90">
-                  真实 28.5m 天线 · Raisting
+                  {t.station.realAntenna}
                 </span>
               </div>
             </div>
@@ -160,13 +162,13 @@ export default function StationPage() {
           <div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
             <section className="panel">
               <div className="panel-header">
-                <span>设备槽位</span>
+                <span>{t.station.slots}</span>
                 <span className="data text-[12px] text-warn">
                   ₡{Math.round(useGameStore.getState().credits).toLocaleString()}
                 </span>
               </div>
               <div className="p-2 space-y-1.5">
-                {Object.entries(CATEGORY_LABELS).map(([cat, label]) => {
+                {Object.entries(CATEGORY_LABELS).map(([cat]) => {
                   const eq = slots[cat]
                   return (
                     <div
@@ -175,26 +177,28 @@ export default function StationPage() {
                       data-testid={`slot-${cat}`}
                     >
                       <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-ink-dim text-[12.5px]">{label}</span>
+                        <span className="text-ink-dim text-[12.5px]">
+                          {(t.equip.cats as Record<string, string>)[cat] ?? cat}
+                        </span>
                         {eq && (
                           <span
                             className={`inline-flex items-center gap-1 text-[12.5px] ${eq.status === 'ok' ? 'text-ok' : 'text-danger'}`}
                           >
                             <span className={`status-dot ${eq.status === 'ok' ? 'bg-ok' : 'bg-danger'}`} />
-                            {eq.status === 'ok' ? '正常' : '故障'}
+                            {eq.status === 'ok' ? t.station.ok : t.station.fault}
                           </span>
                         )}
                       </div>
                       {eq ? (
                         <>
-                          <div className="text-ink">{eq.name}</div>
+                          <div className="text-ink">{itemName(eq, t)}</div>
                           <div className="flex gap-2 mt-1">
                             <button
                               className="btn h-6 text-[12.5px] px-2"
                               disabled={busy}
                               onClick={() => void act(() => gameApi.unequip(eq.id, saveId, station.id))}
                             >
-                              拆卸
+                              {t.station.uninstall}
                             </button>
                             {eq.status === 'fault' && (
                               <button
@@ -202,7 +206,7 @@ export default function StationPage() {
                                 disabled={busy}
                                 onClick={() => void act(() => phase4Api.repair(eq.id, saveId))}
                               >
-                                维修
+                                {t.station.repair}
                               </button>
                             )}
                           </div>
@@ -217,7 +221,7 @@ export default function StationPage() {
                               void act(() => gameApi.install(cand.id, saveId, station.id))
                             }}
                           >
-                            安装库存
+                            {t.station.installInv}
                           </button>
                         )
                       )}
@@ -229,30 +233,32 @@ export default function StationPage() {
 
             <section className="panel">
               <div className="panel-header">
-                <span>库存</span>
+                <span>{t.station.inventory}</span>
                 <button className="text-[12px] text-signal hover:underline" onClick={() => nav('/equipment')}>
-                  前往采购
+                  {t.station.goBuy}
                 </button>
               </div>
               <div className="p-2 space-y-1">
-                {inventory.length === 0 && <div className="text-[12px] text-ink-dim px-1 py-1">库存为空</div>}
+                {inventory.length === 0 && <div className="text-[12px] text-ink-dim px-1 py-1">{t.station.invEmpty}</div>}
                 {inventory.map((eq) => (
                   <div key={eq.id} className="row !py-1.5 rounded-md">
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] text-ink truncate">{eq.name}</div>
-                      <div className="text-[12.5px] text-ink-dim">{CATEGORY_LABELS[eq.category ?? ''] ?? eq.category}</div>
+                      <div className="text-[13px] text-ink truncate">{itemName(eq, t)}</div>
+                      <div className="text-[12.5px] text-ink-dim">
+                        {(t.equip.cats as Record<string, string>)[eq.category ?? ''] ?? eq.category}
+                      </div>
                     </div>
                     <button
                       className="btn btn-primary h-6 text-[12.5px] px-2"
                       disabled={busy}
                       onClick={() => void act(() => gameApi.install(eq.id, saveId, station.id))}
                     >
-                      安装
+                      {t.station.install}
                     </button>
                     <button
                       className="btn btn-danger w-7 h-6 px-0"
                       disabled={busy}
-                      title={`出售（半价 ₡${((eq.price ?? 0) / 2).toFixed(0)}）`}
+                      title={fmt(t.station.sell, { price: ((eq.price ?? 0) / 2).toFixed(0) })}
                       onClick={() => void act(() => gameApi.sell(eq.id, saveId))}
                     >
                       <Icon name="trash" size={12} />
@@ -268,9 +274,19 @@ export default function StationPage() {
   )
 }
 
-function nStationCost(stations: { id: string }[], id: string): string {
+/** 设备名：目录内置条目按 catalog_id 映射当前语言，其余显示后端原文。 */
+function itemName(eq: EquipmentItem, t: ReturnType<typeof useLang>['t']): string {
+  const dict = (t.equip.items as Record<string, { name: string; desc: string }>)[eq.catalog_id]
+  return dict?.name ?? eq.name
+}
+
+function nStationCost(
+  stations: { id: string }[],
+  id: string,
+  t: ReturnType<typeof useLang>['t'],
+): string {
   const idx = stations.findIndex((s) => s.id === id)
-  return idx <= 0 ? '免费（首站）' : `₡${(2000 * idx).toLocaleString()}`
+  return idx <= 0 ? t.station.free : `₡${(2000 * idx).toLocaleString()}`
 }
 
 function Spec({ k, v, cls }: { k: string; v: string; cls?: string }) {

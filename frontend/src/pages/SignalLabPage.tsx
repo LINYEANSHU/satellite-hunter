@@ -10,16 +10,9 @@ import {
 import PageHeader from '../components/PageHeader'
 import { ConstellationPlot, SpectrumPlot, WaveformPlot, WaterfallPlot } from '../components/SignalPlots'
 import { useGameStore } from '../stores/gameStore'
+import { useLang, fmt, tr } from '../i18n'
 
 type Tab = 'spectrum' | 'waterfall' | 'waveform' | 'constellation'
-
-const FORMATS = [
-  ['cf32', 'float32 (SatDump 默认)'],
-  ['cs16', 'int16'],
-  ['cu8', 'uint8 (RTL)'],
-  ['cs8', 'int8'],
-  ['cu16', 'uint16'],
-]
 
 /** 信号分析实验室（需求 6.1/6.2/6.3）。 */
 export default function SignalLabPage() {
@@ -30,6 +23,7 @@ export default function SignalLabPage() {
   const [tab, setTab] = useState<Tab>('spectrum')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const { t } = useLang()
 
   // 回放进度（对离线录波：position = 采样偏移比例）
   const [position, setPosition] = useState(0)
@@ -44,7 +38,7 @@ export default function SignalLabPage() {
   const [stats, setStats] = useState<Record<string, number>>({})
 
   // 上传表单
-  const [fmt, setFmt] = useState('cf32')
+  const [fmt_, setFmt] = useState('cf32')
   const [srate, setSrate] = useState('48000')
   const [cfreq, setCfreq] = useState('137000000')
 
@@ -54,6 +48,14 @@ export default function SignalLabPage() {
   const [pipeline, setPipeline] = useState('')
   const [jobs, setJobs] = useState<SatdumpJobView[]>([])
   const [logText, setLogText] = useState('')
+
+  const FORMATS: [string, string][] = [
+    ['cf32', t.sig.fmtCf32],
+    ['cs16', t.sig.fmtCs16],
+    ['cu8', t.sig.fmtCu8],
+    ['cs8', t.sig.fmtCs8],
+    ['cu16', t.sig.fmtCu16],
+  ]
 
   const reloadList = useCallback(async () => {
     if (!saveId) return
@@ -78,7 +80,7 @@ export default function SignalLabPage() {
         setSpectrum(sp)
         setStats(st)
       } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e))
+        setErr(tr(e))
       }
     },
     [position],
@@ -148,7 +150,7 @@ export default function SignalLabPage() {
     setErr(null)
     try {
       const rec = await uploadRecording(saveId, file, {
-        format: fmt,
+        format: fmt_,
         sample_rate_hz: Number(srate) || 0,
         center_frequency_hz: Number(cfreq) || 0,
       })
@@ -156,7 +158,7 @@ export default function SignalLabPage() {
       setSelected(rec)
       setPosition(0)
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+      setErr(tr(e))
     } finally {
       setBusy(false)
     }
@@ -188,7 +190,7 @@ export default function SignalLabPage() {
       })
       await refreshJobs()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+      setErr(tr(e))
     } finally {
       setBusy(false)
     }
@@ -207,19 +209,26 @@ export default function SignalLabPage() {
   if (!saveId) {
     return (
       <div className="h-full panel flex items-center justify-center text-sm text-ink-dim">
-        未进入存档
+        {t.missions.noSave}
         <button className="btn ml-3" onClick={() => nav('/')}>
-          返回主菜单
+          {t.missions.backMenu}
         </button>
       </div>
     )
   }
 
+  const TABS: [Tab, string][] = [
+    ['spectrum', t.sig.tab.spectrum],
+    ['waterfall', t.sig.tab.waterfall],
+    ['waveform', t.sig.tab.waveform],
+    ['constellation', t.sig.tab.constellation],
+  ]
+
   return (
     <div className="h-full flex flex-col gap-3 min-h-0">
       <PageHeader
-        title="信号实验室"
-        subtitle="频谱 · 瀑布图 · IQ 分析 · SatDump 离线解码"
+        title={t.sig.title}
+        subtitle={t.sig.subtitle}
         right={
           selected && (
             <span className="chip text-warn border-warn/40">
@@ -235,11 +244,11 @@ export default function SignalLabPage() {
         {/* 左：录波列表 + 导入 */}
         <div className="w-64 shrink-0 panel flex flex-col min-h-0">
           <div className="panel-header">
-            <span>录波文件</span>
+            <span>{t.sig.recs}</span>
             <span className="data normal-case">{recordings.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            {recordings.length === 0 && <div className="p-3 text-xs text-ink-dim">导入一个 IQ 录波开始分析。</div>}
+            {recordings.length === 0 && <div className="p-3 text-xs text-ink-dim">{t.sig.recsEmpty}</div>}
             {recordings.map((r) => (
               <button
                 key={r.id}
@@ -268,15 +277,15 @@ export default function SignalLabPage() {
               data-testid="recording-file-input"
             />
             <div className="grid grid-cols-3 gap-1">
-              <select className="input !h-7 !text-[12px] px-1" value={fmt} onChange={(e) => setFmt(e.target.value)}>
+              <select className="input !h-7 !text-[12px] px-1" value={fmt_} onChange={(e) => setFmt(e.target.value)}>
                 {FORMATS.map(([v, l]) => (
                   <option key={v} value={v}>
                     {l}
                   </option>
                 ))}
               </select>
-              <input className="input !h-7 !text-[12px]" placeholder="采样率" value={srate} onChange={(e) => setSrate(e.target.value)} />
-              <input className="input !h-7 !text-[12px]" placeholder="中心Hz" value={cfreq} onChange={(e) => setCfreq(e.target.value)} />
+              <input className="input !h-7 !text-[12px]" placeholder={t.sig.sampleRatePh} value={srate} onChange={(e) => setSrate(e.target.value)} />
+              <input className="input !h-7 !text-[12px]" placeholder={t.sig.centerHzPh} value={cfreq} onChange={(e) => setCfreq(e.target.value)} />
             </div>
           </div>
         </div>
@@ -285,14 +294,7 @@ export default function SignalLabPage() {
         <div className="flex-1 min-w-0 panel flex flex-col">
           <div className="panel-header">
             <div className="flex gap-1.5">
-              {(
-                [
-                  ['spectrum', '频谱'],
-                  ['waterfall', '瀑布图'],
-                  ['waveform', 'IQ 波形'],
-                  ['constellation', '星座图'],
-                ] as [Tab, string][]
-              ).map(([k, label]) => (
+              {TABS.map(([k, label]) => (
                 <button
                   key={k}
                   className={`chip cursor-pointer ${tab === k ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
@@ -304,8 +306,8 @@ export default function SignalLabPage() {
             </div>
             <span className="data normal-case text-[12px]">
               {selected
-                ? `偏移 ${(((selected.samples ?? 0) * position) | 0).toLocaleString()} 采样 (${(position * 100).toFixed(0)}%)`
-                : '未选择录波'}
+                ? fmt(t.sig.offset, { n: (((selected.samples ?? 0) * position) | 0).toLocaleString(), pct: (position * 100).toFixed(0) })
+                : t.sig.noRec}
             </span>
           </div>
 
@@ -313,7 +315,7 @@ export default function SignalLabPage() {
             <div className="flex-1 flex items-center justify-center text-ink-dim text-sm">
               <div className="text-center">
                 <Icon name="wave" size={34} className="text-ink-faint mx-auto mb-2" />
-                选择或导入录波文件
+                {t.sig.selectOrImport}
               </div>
             </div>
           ) : (
@@ -360,12 +362,12 @@ export default function SignalLabPage() {
               </div>
               {tab === 'spectrum' && Object.keys(stats).length > 0 && (
                 <div className="grid grid-cols-6 gap-2 mt-3 text-[12px] data text-ink-dim">
-                  <Stat k="功率 dBFS" v={stats.power_dbfs?.toFixed(1)} />
-                  <Stat k="峰值" v={stats.mag_peak?.toFixed(2)} />
-                  <Stat k="DC I" v={stats.i_mean?.toFixed(3)} />
-                  <Stat k="DC Q" v={stats.q_mean?.toFixed(3)} />
-                  <Stat k="频偏" v={stats.freq_offset_hz ? `${(stats.freq_offset_hz / 1000).toFixed(2)} kHz` : '—'} />
-                  <Stat k="裁剪率" v={`${((stats.clip_ratio ?? 0) * 100).toFixed(2)}%`} />
+                  <Stat k={t.sig.stats.power} v={stats.power_dbfs?.toFixed(1)} />
+                  <Stat k={t.sig.stats.peak} v={stats.mag_peak?.toFixed(2)} />
+                  <Stat k={t.sig.stats.dci} v={stats.i_mean?.toFixed(3)} />
+                  <Stat k={t.sig.stats.dcq} v={stats.q_mean?.toFixed(3)} />
+                  <Stat k={t.sig.stats.freqOff} v={stats.freq_offset_hz ? `${(stats.freq_offset_hz / 1000).toFixed(2)} kHz` : '—'} />
+                  <Stat k={t.sig.stats.clip} v={`${((stats.clip_ratio ?? 0) * 100).toFixed(2)}%`} />
                 </div>
               )}
             </div>
@@ -375,10 +377,10 @@ export default function SignalLabPage() {
         {/* 右：SatDump */}
         <div className="w-80 shrink-0 panel overflow-y-auto">
           <div className="panel-header">
-            <span>SatDump 解码</span>
+            <span>{t.sig.satdump}</span>
             {sdStatus && (
               <span className={`data normal-case ${sdStatus.installed ? 'text-ok' : 'text-warn'}`}>
-                {sdStatus.installed ? `v${sdStatus.version ?? '?'}` : '未安装'}
+                {sdStatus.installed ? `v${sdStatus.version ?? '?'}` : t.sig.notInstalled}
               </span>
             )}
           </div>
@@ -392,10 +394,10 @@ export default function SignalLabPage() {
 
             <div className="flex gap-2">
               <button className="btn h-7 text-[12.5px] flex-1" disabled={busy || !sdStatus?.installed} onClick={() => void refreshPipelines()}>
-                ↻ 探测 Pipeline
+                {t.sig.detect}
               </button>
               <button className="btn btn-primary h-7 text-[12.5px] flex-1" disabled={busy || !selected || !pipeline} onClick={() => void startJob()} data-testid="start-decode">
-                ▶ 启动解码
+                {t.sig.startDecode}
               </button>
             </div>
 
@@ -410,9 +412,9 @@ export default function SignalLabPage() {
             )}
 
             <div>
-              <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">解码任务</div>
+              <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">{t.sig.jobs}</div>
               <div className="space-y-1.5">
-                {jobs.length === 0 && <div className="text-[12.5px] text-ink-dim">暂无任务</div>}
+                {jobs.length === 0 && <div className="text-[12.5px] text-ink-dim">{t.sig.jobsEmpty}</div>}
                 {jobs.map((j) => (
                   <div key={j.id} className="panel p-2" data-testid={`job-${j.id.slice(0, 8)}`}>
                     <div className="flex justify-between items-center">
@@ -437,12 +439,12 @@ export default function SignalLabPage() {
                     {j.status === 'failed' && <div className="text-[12px] text-danger mt-1">{j.error}</div>}
                     {j.status === 'done' && (
                       <div className="text-[12px] text-ink-dim mt-1 data">
-                        {j.result_files?.length ?? 0} 个输出文件
+                        {fmt(t.sig.outputs, { n: j.result_files?.length ?? 0 })}
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-1.5">
                       <button className="btn h-6 text-[12px] px-2" onClick={() => void watchJob(j.id)}>
-                        日志
+                        {t.sig.log}
                       </button>
                       {(j.status === 'running' || j.status === 'pending') && (
                         <button
@@ -452,7 +454,7 @@ export default function SignalLabPage() {
                             await refreshJobs()
                           }}
                         >
-                          取消
+                          {t.sig.cancel}
                         </button>
                       )}
                       {j.status === 'done' && (
@@ -461,13 +463,13 @@ export default function SignalLabPage() {
                           onClick={async () => {
                             await signalApi.satdumpCollect(j.id, {
                               save_id: saveId,
-                              title: `${j.pipeline} 解码结果`,
+                              title: fmt(t.sig.decodeTitle, { pipeline: j.pipeline }),
                               satellite_id: selected?.satellite_id ?? null,
                             })
                             await refreshJobs()
                           }}
                         >
-                          收藏
+                          {t.sig.collect}
                         </button>
                       )}
                     </div>
@@ -478,9 +480,9 @@ export default function SignalLabPage() {
 
             {logText && (
               <div>
-                <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">任务日志</div>
+                <div className="text-ink-dim uppercase tracking-widest text-[12px] mb-1">{t.sig.logSection}</div>
                 <pre className="bg-ground-0 rounded p-2 text-[12px] data text-ink-dim max-h-48 overflow-auto whitespace-pre-wrap">
-                  {logText || '（空）'}
+                  {logText || t.sig.logEmpty}
                 </pre>
               </div>
             )}

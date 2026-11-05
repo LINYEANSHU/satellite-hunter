@@ -6,7 +6,8 @@ check_and_unlock 在这些事件后调用，条件评估基于数据库聚合状
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+import math
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -79,15 +80,25 @@ def check_and_unlock(db: Session, save_id: str) -> list[str]:
         return q.count()
 
     data_mb = sum(m.data_produced_mb for m in missions_done)
+    # 一次取回本存档全部图鉴条目，按卫星建索引（原先每个任务各查一次，N+1）
+    cat_by_sat = {
+        c.satellite_id: c.category
+        for c in collection
+    }
     cat_missions: dict[str, int] = {}
     for m in missions_done:
-        ce = (
-            db.query(CollectionEntry)
-            .filter(CollectionEntry.save_id == save_id, CollectionEntry.satellite_id == m.satellite_id)
-            .one_or_none()
-        )
-        cat = ce.category if ce else "other"
+        cat = cat_by_sat.get(m.satellite_id, "other")
         cat_missions[cat] = cat_missions.get(cat, 0) + 1
+
+    # 解码产出数（仅当还有未解锁成就需要该维度时才额外查询）
+    pending_types = {_cond(k).get("type") for k in ACHIEVEMENTS if k not in have}
+    decoded_n = (
+        db.query(CollectionItem)
+        .filter(CollectionItem.save_id == save_id, CollectionItem.kind == "decoded_image")
+        .count()
+        if "decoded_outputs" in pending_types
+        else 0
+    )
 
     # 成就逐条评估
     for aid, cond in ((k, _cond(k)) for k in ACHIEVEMENTS if k not in have):
@@ -145,6 +156,10 @@ def check_and_unlock(db: Session, save_id: str) -> list[str]:
             ok = _band_check(db, missions_done, cond)
         elif t == "collection_items":
             ok = items_n >= cond.get("count", 1)
+        elif t == "decoded_outputs":
+            ok = decoded_n >= cond.get("count", 1)
+        elif t == "night_missions":
+            ok = _night_missions(missions_done, stations) >= cond.get("count", 1)
 
         if ok:
             db.add(Achievement(save_id=save_id, achievement_id=aid))
@@ -213,6 +228,34 @@ def _streak(missions_done) -> int:
         else:
             cur = 0
     return best
+
+
+def _sun_elevation_deg(lat: float, lon: float, when: datetime) -> float:
+    """太阳高度角近似（精度约 ±1°，成就判定足够）。
+
+    平太阳时 + 年内正弦赤纬近似（与前端 coords.ts::sunDirection 同一模型）：
+    时角 = 15°×(UTC 时 - 12) + 经度（东经为正）；结果为该站上太阳的地平高度。
+    """
+    doy = when.timetuple().tm_yday
+    decl = 23.44 * math.sin(2.0 * math.pi * (doy - 81) / 365.0)
+    utc_h = when.hour + when.minute / 60.0
+    hour_angle = math.radians(15.0 * (utc_h - 12.0) + lon)
+    lat_r, decl_r = math.radians(lat), math.radians(decl)
+    sin_h = math.sin(lat_r) * math.sin(decl_r) + math.cos(lat_r) * math.cos(decl_r) * math.cos(hour_angle)
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_h))))
+
+
+def _night_missions(missions_done, stations) -> int:
+    """夜间完成任务数：任务结束时站上太阳高度 < -6°（天文黄昏，见 night_watch 描述）。"""
+    pos = {st.id: (st.lat, st.lon) for st in stations}
+    n = 0
+    for m in missions_done:
+        if m.status != "completed" or not m.ended_at or m.station_id not in pos:
+            continue
+        lat, lon = pos[m.station_id]
+        if _sun_elevation_deg(lat, lon, m.ended_at) < -6.0:
+            n += 1
+    return n
 
 
 def _missions_in_day(missions_done) -> int:

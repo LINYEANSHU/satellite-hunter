@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import calendar
 import random
 from datetime import datetime, timedelta
 
@@ -160,10 +161,16 @@ def daily_event_check(db: Session, save_id: str, sim_time: datetime) -> list[dic
     effects = player_effects(db, save_id)
 
     day_key = sim_time.strftime("%Y%m%d")
+    # GameEvent.ts 为 Unix 时间戳（time.time()）；sim_time 是 naive UTC。
+    # naive datetime 的 .timestamp() 会按本地时区解释（UTC+8 机器偏差 8 小时），
+    # 必须用 calendar.timegm 显式按 UTC 计算（与 satellites._utc_millis 同理）。
+    day_start_ts = calendar.timegm(
+        sim_time.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()
+    )
     existing = {
         e.payload.get("day_key")
         for e in db.query(GameEvent)
-        .filter(GameEvent.save_id == save_id, GameEvent.kind == "special_event", GameEvent.ts >= sim_time.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+        .filter(GameEvent.save_id == save_id, GameEvent.kind == "special_event", GameEvent.ts >= day_start_ts)
         .all()
     }
     for st in stations:

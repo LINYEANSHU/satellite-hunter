@@ -35,9 +35,9 @@ interface CatalogStore {
 async function doFetch(group: string, search: string): Promise<PositionSample> {
   const simT = useTimeStore.getState().now()
   const atIso = new Date(simT).toISOString() // 位置按当前仿真时间计算（时间控制生效）
-  let ids: number[] | undefined
-  const { items } = await orbitApi.list(group, search, 2000, 0)
-  if (search) ids = items.map((i) => i.norad_id)
+  // 目录列表已由 loadSatellites 保存在 store：轮询热路径（800ms/次）不再重复
+  // 请求 /api/satellites 列表接口。搜索态用 store 中列表的目录号过滤位置请求。
+  const ids = search ? useCatalogStore.getState().satellites.map((i) => i.norad_id) : undefined
   const { t, items: pos } = await fetchPositions(group, atIso, ids)
   const byId = new Map<number, [number, number, number]>()
   for (const [id, x, y, z] of pos) byId.set(id, [x, y, z])

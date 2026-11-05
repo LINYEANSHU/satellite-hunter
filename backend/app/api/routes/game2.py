@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.core.timeparse import parse_utc_at
 from app.db import get_db
 from app.db.models import CollectionEntry, CollectionItem, Equipment, Mission, PlayerState, Save, Station
 from app.services.game import achievements as ach_service
@@ -25,9 +26,11 @@ class SaveCreate(BaseModel):
 @router.get("/saves")
 def list_saves(db: Session = Depends(get_db)) -> list[dict]:
     rows = db.query(Save).order_by(Save.last_played_at.desc()).all()
+    # 一次取回全部玩家状态（原先每个存档各查一次，N+1）
+    states = {p.save_id: p for p in db.query(PlayerState).all()}
     out = []
     for s in rows:
-        p = db.get(PlayerState, s.id)
+        p = states.get(s.id)
         out.append(
             {
                 "id": s.id,
@@ -221,7 +224,9 @@ def list_missions(
 def create_mission(body: MissionCreate, db: Session = Depends(get_db)) -> dict:
     at = None
     if body.at:
-        at = datetime.fromisoformat(body.at.replace("Z", "+00:00")).replace(tzinfo=None)
+        from app.core.timeparse import parse_utc_at
+
+        at = parse_utc_at(body.at)
     m = mission_service.create_mission(
         db, body.save_id, body.station_id, body.satellite_id, body.type, body.priority, at, body.auto
     )
@@ -257,11 +262,7 @@ def mission_telemetry(
     at: str = Query("", description="ISO UTC 仿真时间；默认现实当前"),
     db: Session = Depends(get_db),
 ) -> dict:
-    at_dt = (
-        datetime.fromisoformat(at.replace("Z", "+00:00")).replace(tzinfo=None)
-        if at
-        else datetime.utcnow()
-    )
+    at_dt = parse_utc_at(at)
     result = mission_service.telemetry(db, mission_id, at_dt)
     unlocked = []
     m = db.get(Mission, mission_id)

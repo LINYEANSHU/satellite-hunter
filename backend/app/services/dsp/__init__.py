@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import struct
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -45,11 +46,16 @@ def read_iq_block(path: str | Path, fmt: str, start_sample: int, n_samples: int)
     """读取 [start_sample, start_sample+n) 的复数采样块，返回 complex64。"""
     if fmt not in IQ_FORMATS:
         raise ValueError(f"不支持的 IQ 格式: {fmt}")
+    with open(path, "rb") as f:
+        return _read_iq_from(f, fmt, start_sample, n_samples)
+
+
+def _read_iq_from(f, fmt: str, start_sample: int, n_samples: int) -> np.ndarray:
+    """read_iq_block 的文件句柄复用版本（瀑布图逐行读取时避免重复开文件）。"""
     dtype, bpc, _ = IQ_FORMATS[fmt]
     bps = bpc * 2
-    with open(path, "rb") as f:
-        f.seek(start_sample * bps)
-        raw = f.read(n_samples * bps)
+    f.seek(start_sample * bps)
+    raw = f.read(n_samples * bps)
     if not raw:
         return np.zeros(0, dtype=np.complex64)
     n = len(raw) // bps
@@ -66,14 +72,20 @@ def read_iq_block(path: str | Path, fmt: str, start_sample: int, n_samples: int)
     return iq.astype(np.complex64)
 
 
+@lru_cache(maxsize=16)
+def _hanning_window(fft_size: int) -> np.ndarray:
+    """hanning 窗与能量归一化系数缓存（compute_spectrum 高频调用）。"""
+    window = np.hanning(fft_size).astype(np.float32)
+    return window, np.float64(np.sum(window**2))
+
+
 def compute_spectrum(iq: np.ndarray, fft_size: int = 1024, avg: int = 8) -> np.ndarray:
     """功率谱（dB），对 avg 段做平均（类 Welch）。返回长度 fft_size。"""
     if len(iq) < fft_size:
         iq = np.pad(iq, (0, fft_size - len(iq)))
     n_seg = max(1, min(avg, len(iq) // fft_size))
     acc = np.zeros(fft_size)
-    window = np.hanning(fft_size).astype(np.float32)
-    win_norm = np.sum(window**2)
+    window, win_norm = _hanning_window(fft_size)
     for k in range(n_seg):
         seg = iq[k * fft_size : (k + 1) * fft_size] * window
         spec = np.fft.fftshift(np.fft.fft(seg))
@@ -108,18 +120,19 @@ def compute_waterfall(
     row_step = max(1, span // rows)
 
     out = np.zeros((rows, fft_size), dtype=np.float32)
-    for r in range(rows):
-        s = start0 + r * row_step
-        n = min(fft_size * 4, total - s)
-        if n <= 0:
-            break
-        iq = read_iq_block(path, fmt, s, n)
-        if len(iq) < fft_size:
-            continue
-        # 每行取若干段平均
-        seg_len = len(iq) // max(1, len(iq) // fft_size)
-        spec = compute_spectrum(iq[: seg_len * max(1, len(iq) // fft_size)], fft_size, avg=4)
-        out[r] = spec.astype(np.float32)
+    with open(path, "rb") as f:
+        for r in range(rows):
+            s = start0 + r * row_step
+            n = min(fft_size * 4, total - s)
+            if n <= 0:
+                break
+            iq = _read_iq_from(f, fmt, s, n)
+            if len(iq) < fft_size:
+                continue
+            # 每行取若干段平均
+            seg_len = len(iq) // max(1, len(iq) // fft_size)
+            spec = compute_spectrum(iq[: seg_len * max(1, len(iq) // fft_size)], fft_size, avg=4)
+            out[r] = spec.astype(np.float32)
 
     return out, {"samples": total, "row_step": row_step, "t0": t0, "t1": t1}
 

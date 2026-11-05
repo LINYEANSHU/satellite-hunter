@@ -29,3 +29,19 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local benchmarks / scratch (optimization artifacts)
+_bench_*.py
+bench_*.py
+*.tsbuildinfo
+
+# Frontend build output at repo root contexts
+frontend/dist/
+
+# Env files (config.py reads .env; never commit real env)
+backend/.env
+.env
+!.env.example
+
+# Local design-skill inspection artifacts
+.taste-skill/

@@ -28,13 +28,23 @@ def load_catalog() -> dict:
         return json.load(f)
 
 
-def find_def(catalog_id: str) -> dict | None:
+@lru_cache(maxsize=1)
+def _catalog_index() -> dict[str, tuple[dict, str]]:
+    """catalog_id → (定义, 类别) 索引。目录只在启动后加载一次，缓存安全。"""
     cat = load_catalog()
+    idx: dict[str, tuple[dict, str]] = {}
     for category in CATEGORIES:
         for item in cat.get(category, []):
-            if item["id"] == catalog_id:
-                return {**item, "category": category}
-    return None
+            idx[item["id"]] = (item, category)
+    return idx
+
+
+def find_def(catalog_id: str) -> dict | None:
+    hit = _catalog_index().get(catalog_id)
+    if hit is None:
+        return None
+    item, category = hit
+    return {**item, "category": category}
 
 
 def catalog_view() -> dict:

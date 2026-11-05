@@ -21,6 +21,13 @@ _celestrak_status: dict = {"checked_at": 0.0, "reachable": None}
 
 _SATDUMP_VERSION_RE = re.compile(r"satdump(?:\s+version)?[:\s]+v?([\w.\-]+)", re.IGNORECASE)
 
+# SatDump 探测需要运行子进程（最长 15s + WSL 30s），结果缓存一段时间，
+# 避免 /system/capabilities 与 /satdump/status 每次调用都重复探测。
+# 缓存键包含探测目标（settings.satdump_bin / wsl_distro），目标变化时自动失效。
+_SATDUMP_CACHE_TTL_S = 300.0
+_satdump_cache: dict = {}
+_satdump_lock = threading.Lock()
+
 
 def _probe(cmd: list[str], timeout: float = 10.0) -> tuple[bool, str]:
     """运行探测命令，返回 (成功, stdout)。命令执行失败或超时不抛异常。"""
@@ -42,7 +49,20 @@ def detect_satdump() -> dict:
     """探测 SatDump CLI：优先 Windows PATH，其次 WSL 发行版。
 
     只读探测，不修改任何系统状态。结果会被前端用于显示可用状态与安装指引。
+    带短 TTL 缓存（子进程探测代价高，且安装状态在会话内极少变化）。
     """
+    key = (settings.satdump_bin, settings.wsl_distro)
+    with _satdump_lock:
+        hit = _satdump_cache.get(key)
+        if hit is not None and (time.time() - hit[0]) < _SATDUMP_CACHE_TTL_S:
+            return dict(hit[1])
+    result = _detect_satdump_impl()
+    with _satdump_lock:
+        _satdump_cache[key] = (time.time(), dict(result))
+    return result
+
+
+def _detect_satdump_impl() -> dict:
     result: dict = {
         "installed": False,
         "version": None,

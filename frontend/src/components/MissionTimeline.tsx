@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { MissionView } from '../api/game'
+import { useLang } from '../i18n'
 
 const HOURS = 48
 
@@ -15,6 +16,7 @@ export default function MissionTimeline({
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const hits = useRef<{ id: string; x0: number; x1: number; lane: number }[]>([])
+  const { t } = useLang()
 
   useEffect(() => {
     const cv = ref.current
@@ -42,7 +44,7 @@ export default function MissionTimeline({
       ctx.fillStyle = '#1a2230'
       ctx.fillRect(px, nowY, 1, H - nowY - 14)
       ctx.fillStyle = '#5a6478'
-      ctx.fillText(h === 0 ? '现在' : `+${h}h`, px, H - 3)
+      ctx.fillText(h === 0 ? t.timeline.now : `+${h}h`, px, H - 3)
     }
 
     // 现在线
@@ -94,9 +96,9 @@ export default function MissionTimeline({
       ctx.fillStyle = '#5a6478'
       ctx.font = '12px sans-serif'
       ctx.textAlign = 'left'
-      ctx.fillText('48 小时内没有已计划的任务 —— 创建一个，或使用右侧自动调度。', 52, 44)
+      ctx.fillText(t.timeline.empty, 52, 44)
     }
-  }, [missions, selectedId])
+  }, [missions, selectedId, t])
 
   return (
     <canvas

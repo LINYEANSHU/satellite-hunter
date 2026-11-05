@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -42,6 +42,20 @@ class GroupData:
     stale: bool
     error: str = ""
     label: str = ""
+    _index: dict[int, SatEntry] | None = field(default=None, repr=False, compare=False)
+
+    def index(self) -> dict[int, SatEntry]:
+        """norad_id → entry 索引（惰性构建）。
+
+        find() 是遥测轮询等高频路径，线性扫描大分组（active 约 2 万条）
+        每次代价可观；条目集合随 GroupData 对象整体替换（刷新时新建对象），
+        因此索引与对象生命周期一致，无需额外失效逻辑。
+        """
+        idx = self._index
+        if idx is None:
+            idx = {e.norad_id: e for e in self.entries}
+            self._index = idx
+        return idx
 
     def as_status(self) -> dict:
         epochs = [e.epoch for e in self.entries if e.epoch]
@@ -61,9 +75,22 @@ class CatalogService:
     def __init__(self) -> None:
         self._groups: dict[str, GroupData] = {}
         self._last_attempt: dict[str, float] = {}
+        # 全局锁仅保护内部字典结构与磁盘缓存写入；网络请求使用分组锁，
+        # 避免刷新某个大分组（最长 60s 超时）阻塞其他分组的轮询读。
         self._lock = threading.Lock()
+        self._group_locks: dict[str, threading.Lock] = {}
+        # 磁盘缓存解析记忆化：mtime 未变时直接复用解析结果（find/status 高频调用）
+        self._disk_memo: dict[str, tuple[float, GroupData]] = {}
         # 失败后的最短重试间隔，避免对上游形成压力
         self._min_retry_s = 600.0
+
+    def _group_lock(self, group: str) -> threading.Lock:
+        with self._lock:
+            lk = self._group_locks.get(group)
+            if lk is None:
+                lk = threading.Lock()
+                self._group_locks[group] = lk
+            return lk
 
     # ---------------------------------------------------------------- 缓存 IO
     def _cache_path(self, group: str):
@@ -106,7 +133,7 @@ class CatalogService:
         if group not in settings.orbit_groups and group != "user_imported":
             raise AppError(400, "BAD_GROUP", f"未知分组: {group}")
 
-        with self._lock:
+        with self._group_lock(group):
             return self._get_group_locked(group, force)
 
     def _get_group_locked(self, group: str, force: bool) -> GroupData:
@@ -183,28 +210,39 @@ class CatalogService:
         return self.get_group(group).entries
 
     def find(self, norad_id: int, group: str | None = None) -> SatEntry | None:
+        """按目录号查找（高频路径：遥测轮询/详情/任务创建）。"""
         if group:
-            for e in self.entries(group):
-                if e.norad_id == norad_id:
-                    return e
-            return None
+            return self.get_group(group).index().get(norad_id)
         for g, data in list(self._groups.items()):
-            for e in data.entries:
-                if e.norad_id == norad_id:
-                    return e
+            hit = data.index().get(norad_id)
+            if hit is not None:
+                return hit
         # 未加载的分组中查找（stations 优先）
         for g in settings.orbit_groups:
             data = self._get_group_if_cached(g)
             if data:
-                for e in data.entries:
-                    if e.norad_id == norad_id:
-                        return e
+                hit = data.index().get(norad_id)
+                if hit is not None:
+                    return hit
         return None
 
     def _get_group_if_cached(self, group: str) -> GroupData | None:
         if group in self._groups:
             return self._groups[group]
-        return self._load_cache(group)
+        # 记忆化：磁盘文件未变化时复用上次解析结果（避免 find/status 每次重解析大 JSON）
+        path = self._cache_path(group)
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            self._disk_memo.pop(group, None)
+            return None
+        hit = self._disk_memo.get(group)
+        if hit is not None and hit[0] == mtime:
+            return hit[1]
+        data = self._load_cache(group)
+        if data is not None:
+            self._disk_memo[group] = (mtime, data)
+        return data
 
     def status(self) -> list[dict]:
         out = []
@@ -245,7 +283,9 @@ class CatalogService:
             merged = GroupData(
                 group="user_imported",
                 entries=list(seen.values()),
-                fetched_at=existing.fetched_at,
+                # 导入改变了数据内容，刷新 fetched_at 以使版本化缓存失效
+                # （前端显示的"数据年龄"同步归零，语义上更准确）
+                fetched_at=time.time(),
                 stale=False,
                 label=GROUP_LABELS["user_imported"],
             )
