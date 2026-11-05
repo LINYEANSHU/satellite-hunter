@@ -55,16 +55,23 @@ sys.exit(2)
 
 @pytest.fixture()
 def mock_satdump(tmp_path, monkeypatch):
-    """创建 mock satdump 可执行（.cmd，Windows 可被 shutil.which 找到）。"""
+    """创建 mock satdump 可执行：Windows 用 .cmd 批处理，POSIX 用 shell 包装脚本。"""
     from app.core import config as cfg
 
     script = tmp_path / "mock_satdump.py"
     script.write_text(MOCK_SATDUMP_PY, encoding="utf-8")
-    cmd = tmp_path / "mock_satdump.cmd"
-    # cmd.exe 以系统 ANSI 代码页(mbcs)解析批处理——venv 路径含中文，必须用 mbcs 编码
-    cmd.write_bytes(
-        f'@echo off\r\n"{os.sys.executable}" "%~dp0mock_satdump.py" %*\r\n'.encode("mbcs", "replace")
-    )
+    if os.name == "nt":
+        cmd = tmp_path / "mock_satdump.cmd"
+        # cmd.exe 以系统 ANSI 代码页(mbcs)解析批处理——venv 路径含中文，必须用 mbcs 编码
+        cmd.write_bytes(
+            f'@echo off\r\n"{os.sys.executable}" "%~dp0mock_satdump.py" %*\r\n'.encode("mbcs", "replace")
+        )
+    else:
+        cmd = tmp_path / "mock_satdump"
+        cmd.write_text(
+            f'#!/bin/sh\nexec "{os.sys.executable}" "{script}" "$@"\n',
+            encoding="utf-8",
+        )
     cmd.chmod(cmd.stat().st_mode | stat.S_IEXEC)
 
     old_bin = cfg.settings.satdump_bin
