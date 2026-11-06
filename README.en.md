@@ -1,124 +1,87 @@
-<p align="center">
-  <img src="./assets/readme/hero-en.svg" width="100%" alt="Satellite Hunter: a ground-station simulator with real SGP4 orbits, pass prediction, link budgets and SatDump decoding">
-</p>
+[简体中文](README.md) · **English**
 
-<p align="center">
-  <b>English</b> · <a href="README.md">中文</a>
-</p>
+# Satellite Hunter · Ground-station simulator
 
-<p align="center">
-  <a href="https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml"><img src="https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/node-22%2B-339933?logo=nodedotjs&logoColor=white" alt="Node 22+">
-</p>
+Build a satellite-observation network: place ground stations, predict passes, track reception and inspect recordings using real orbital propagation.
 
-**Satellite Hunter** is a ground-station simulator built on real orbital data: every satellite comes from real CelesTrak two-line elements (TLE/GP) and is propagated with SGP4. Pass predictions, Doppler shift, and link budgets all follow real physics — while prices and rewards are game-balance values. The skills you practice here actually transfer.
+<img src="assets/readme/hero-en.svg" width="100%" alt="Satellite Hunter · Ground-station simulator">
 
-## Gameplay loop
+[![CI](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml)
+[![MIT](https://img.shields.io/badge/license-MIT-54775a.svg)](LICENSE)
 
-```
-Place a station → Predict passes → Track & receive → Decode & analyze → Score · achievements · expand
-```
+## In the app
 
-1. **Place a station** — click anywhere on the 3D globe to build a ground station and set its minimum elevation;
-2. **Predict passes** — SGP4 propagation plus a pass cache yields AOS/LOS times, peak elevation, and azimuths for the next 24–72 h;
-3. **Track & receive** — the rotator follows the satellite live while you monitor azimuth/elevation, SNR, Doppler, and the data buffer;
-4. **Decode & analyze** — import IQ recordings to inspect spectrum, waterfall, and constellation plots, or hand them to external SatDump for real decoding;
-5. **Score · achievements · expand** — earn Credits and research points, unlock 36 achievements, and grow one station into a global observing network.
+<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter · Ground-station simulator — desktop interface">
 
-Fully playable without any radio hardware. Connect a real SDR recording and the same analysis pipeline applies.
+<details>
+<summary>Show the mobile layout</summary>
 
-## Highlights
+<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter · Ground-station simulator — mobile interface">
 
-- **Real orbit system** — CelesTrak GP/TLE fetches with a 2-hour cache floor, full SGP4 propagation, cross-checked against Skyfield during development
-- **Pass prediction engine** — cached pass search (AOS/LOS/peak elevation/AOS & LOS azimuths) with automatic countdown alerts before each pass
-- **Physically grounded reception** — link budgets decide outcomes (antenna gain, noise figure, band coverage, rotator pointing); seeded jitter keeps results reproducible (SIMULATED_RF)
-- **Signal lab** — spectrum, waterfall, IQ waveform, and constellation plots; SatDump runs as an external process and its decoded products can be collected into your save
-- **36 event-driven achievements** plus a research-perk system and a deterministic auto-scheduler
-- **3D globe** — Three.js renders the Earth, live satellite positions, selection markers and trails, orbit lines, and ground stations
+</details>
 
-## Quick start
+## Start
 
-Prerequisites: Python 3.11+, Node.js 20+ (CI runs on Node 22). Optional: SatDump for real signal decoding — everything else works without it (see `docs/satdump.md`).
+Use Python 3.11+ and Node.js 20+ (CI uses Node 22). SatDump is an optional external tool, not a prerequisite for the basic game.
 
-### One-command start
-
-```sh
-# Git Bash / Linux / macOS
-./scripts/dev.sh
-```
+On Windows, double-click or run:
 
 ```bat
-:: Windows (cmd)
 scripts\dev.bat
 ```
 
-The script creates the virtualenv, installs dependencies, and starts the backend (http://localhost:8000) plus the frontend (http://localhost:5273). Open **http://localhost:5273** in your browser.
-
-### Manual setup
+On Git Bash, Linux or macOS:
 
 ```sh
-# Backend
+bash scripts/dev.sh
+```
+
+The scripts install dependencies and start the backend at `http://localhost:8000` and frontend at `http://localhost:5273`. Open the frontend. Initial setup needs network access to download dependencies.
+
+Create a save → choose a satellite → build a station → buy and install equipment → inspect a pass window and schedule a mission.
+
+## Observation and progression
+
+- **Real orbits, labeled simulation**: CelesTrak GP/TLE data is propagated with SGP4. Reception uses a link-budget model and seeded jitter marked `SIMULATED_RF`; prices, rewards and research are game mechanics.
+- **Station networks**: location, elevation mask, antennas, receivers, rotators, missions and research affect results.
+- **Pass prediction**: AOS/LOS, peak elevation, azimuth and Doppler help select reception windows.
+- **Signal laboratory**: inspect IQ waveforms, spectra, waterfalls and constellation statistics, or send a recording to external SatDump for decoding.
+- **Nine pages**: menu, explorer, stations, equipment, missions, signal lab, codex, achievements and settings, with Chinese/English and narrow-screen navigation.
+
+Catalog definitions and owned equipment use their proper data shapes, so equipment loads correctly. Save creation, requests and decoder availability show meaningful status. Shortcuts respect inputs/buttons; `1`–`5` match the five time-speed controls.
+
+## Verify and develop
+
+```sh
+# From the repository root, after installing backend dependencies
 cd backend
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv/Scripts/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+python -m pytest -q
 ```
 
 ```sh
-# Frontend (second terminal)
+# Another terminal, starting at the repository root
 cd frontend
-npm install
-npm run dev                     # http://localhost:5273
+npm ci
+npm run test
+npm run build
 ```
 
-### Tests
+The backend suite includes a launcher regression; the existing five frontend tests and production build pass. Browser checks against a real local API cover all nine routes at desktop/phone widths, populated equipment, isolated review saves and time shortcuts.
 
-```sh
-cd backend && python -m pytest -q     # backend unit/integration tests (77 tests)
-cd frontend && npm run test           # frontend tests (vitest)
-```
+WebGL verification used CPU SwiftShader without hardware GPU acceleration. Real SDR reception and real SatDump decoding were not tested; adapter tests use mocks. Ordinary browsers choose their own 3D rendering backend.
 
-## Architecture at a glance
+## Compatibility and limits
 
-```
-frontend (React + Three.js + Zustand)
-   │  REST + WebSocket
-backend (FastAPI)
-   ├─ orbit/    CelesTrak GP fetch → disk cache → SGP4 propagation → pass search (cached)
-   ├─ game/     saves, equipment catalog, mission scheduling, RF link model, achievements, events, research
-   ├─ dsp/      recording import, spectrum / waterfall / constellation statistics
-   └─ satdump/  adapter for the external SatDump process (Windows PATH / WSL)
-SQLite saves (backend/data/ — all runtime data can be wiped and rebuilt at any time)
-```
+The globe requires WebGL. Orbital refresh needs a network connection and can use caches; old TLEs are unsuitable for precise prediction. The RF model is a game approximation, not measured link engineering. Decoding recordings requires a separate SatDump installation. Full focus management in legacy dialogs and physical touch gestures still need further work.
 
-- **CelesTrak fetch** — GP data per group (space stations / weather / amateur / science / …), disk-cached with a minimum 2-hour refetch interval
-- **SGP4 propagation** — batched position snapshots with frontend interpolation; no per-frame HTTP requests on the render hot path
-- **Pass cache** — pass results per station × group × time are persisted, so repeated queries cost nothing
-- **SatDump adapter** — detects a local SatDump binary (or WSL distro), submits decode jobs, and streams back logs and output files
+Runtime data lives in `backend/data/` and is excluded from source commits. The main MIT license does not replace licenses for external programs, data or images.
 
-For more detail see [docs/architecture.md](docs/architecture.md), [docs/orbit-data.md](docs/orbit-data.md), and [docs/api.md](docs/api.md).
+## Documentation and license
 
-## Documentation
+[Gameplay](docs/gameplay.md) · [Architecture](docs/architecture.md) · [API](docs/api.md) · [Orbit data](docs/orbit-data.md) · [SatDump](docs/satdump.md) · [Known limits](docs/known-issues.md)
 
-- [Development plan & progress](DEVELOPMENT_PLAN.md)
-- [Architecture](docs/architecture.md)
-- [Orbit data sources](docs/orbit-data.md)
-- [Gameplay](docs/gameplay.md)
-- [API overview](docs/api.md) — the running backend also serves interactive docs at http://localhost:8000/docs
-- [Known issues & roadmap](docs/known-issues.md)
+Code is [MIT](LICENSE). External SatDump retains GPL-3.0. SGP4, CelesTrak, NASA/Wikimedia imagery and other source attribution remain in [licenses and assets](docs/licenses.md) and the in-app image credits.
 
-## References & acknowledgements
+## Contributors
 
-- [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) — the SGP4/SDP4 propagation core
-- [Skyfield](https://github.com/skyfielders/python-skyfield) — used to cross-validate orbital math during development
-- [CelesTrak](https://celestrak.org/) — TLE/GP data source (thanks to Dr. T.S. Kelso)
-- [SatDump](https://github.com/SatDump/SatDump) — external satellite decoding tool, integrated as a separate process (GPL-3.0; attribution in [docs/licenses.md](docs/licenses.md))
-- [Three.js](https://github.com/mrdoob/three.js) and the React ecosystem — 3D globe visualization
-- Page imagery from NASA (public domain) and Wikimedia Commons photographers (credits in the main-menu footer)
-
-## License
-
-Released under the [MIT License](LICENSE). Third-party components (SatDump and others) are integrated as separate processes and keep their own licenses.
+- [LINYEANSHU](https://github.com/LINYEANSHU)

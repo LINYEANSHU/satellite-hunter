@@ -6,35 +6,11 @@
     <title>Satellite Hunter: Ground Station</title>
     <style>
       /* 首屏防白闪 */
-      html, body, #root { height: 100%; background: #070b12; }
+      html, body, #root { height: 100%; background: #091c29; }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // 临时调试钩子：捕获启动期错误（发布前移除）
-      window.__shErrors = [];
-      window.addEventListener('error', function (e) {
-        var st = e.error && e.error.stack ? e.error.stack : '';
-        window.__shErrors.push(String(e.message) + '\n' + st);
-      });
-      window.addEventListener('unhandledrejection', function (e) {
-        window.__shErrors.push('REJ: ' + String(e.reason && e.reason.stack ? e.reason.stack : e.reason));
-      });
-      (function () {
-        var orig = console.error;
-        console.error = function () {
-          try {
-            var a = arguments[0];
-            window.__shErrors.push(
-              'CONSOLE: ' + String(a && a.stack ? a.stack.split('
-').slice(0, 4).join(' | ') : a)
-            );
-          } catch (e) {}
-          orig.apply(console, arguments);
-        };
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

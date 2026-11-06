@@ -111,7 +111,7 @@ export default function StationPage() {
           </p>
         </div>
       ) : (
-        <div className="flex-1 flex gap-3 min-h-0">
+        <div className="workspace-panels flex-1 flex gap-3 min-h-0">
           {/* 左：3D 场景 + 站点信息 */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
             <div className="flex-1 panel overflow-hidden relative min-h-[300px]">

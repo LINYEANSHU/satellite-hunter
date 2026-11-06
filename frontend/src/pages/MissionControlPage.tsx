@@ -103,7 +103,7 @@ export default function MissionControlPage() {
 
       <StatsStrip saveId={saveId} />
 
-      <div className="flex gap-3 flex-1 min-h-0">
+      <div className="workspace-panels flex gap-3 flex-1 min-h-0">
         {/* 任务列表 */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="panel px-1 pt-1 pb-0 overflow-hidden shrink-0" data-testid="timeline-panel">
@@ -116,7 +116,7 @@ export default function MissionControlPage() {
               }}
             />
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {STATUS_KEYS.map((k) => (
               <button
                 key={k}

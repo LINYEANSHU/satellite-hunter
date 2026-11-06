@@ -13,8 +13,12 @@
     font-size: 15px;
     line-height: 1.5;
   }
+  :root { color-scheme: dark; accent-color: #edbb70; }
+  :focus-visible { outline: 2px solid #edbb70; outline-offset: 3px; }
+  input, textarea { caret-color: #edbb70; }
   ::selection {
-    background: rgba(63, 214, 232, 0.25);
+    background: #edbb70;
+    color: #091c29;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -35,6 +39,48 @@
     @apply bg-ground-2 text-ink;
   }
   /* 数据读数一律用等宽数字类 .data；正文数字不强制 */
+}
+
+.nav-label { display: none; }
+.time-bar { flex-shrink: 0; flex-wrap: wrap; }
+.shell-header { flex-shrink: 0; }
+.shell-header > a { flex-shrink: 0; }
+.shell-header button { min-width: 36px; min-height: 36px; }
+.explorer-panels { display: grid; grid-template-columns: 240px minmax(220px, 1fr) 288px; }
+
+@media (max-width: 1100px) {
+  .explorer-panels { grid-template-columns: 210px minmax(220px, 1fr); overflow-y: auto; }
+  .explorer-detail { grid-column: 1 / -1; min-height: 280px; }
+  .explorer-globe { min-height: 420px; }
+  .workspace-panels { flex-wrap: wrap; overflow-y: auto; }
+  .workspace-panels > .shrink-0 { width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .game-shell { height: auto; min-height: 100dvh; }
+  .shell-header { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .shell-header .save-name { display: none; }
+  .shell-status { order: 5; flex-basis: 100%; gap: 14px; flex-wrap: wrap; }
+  .shell-body { flex-direction: column; }
+  .shell-nav { width: 100%; flex-direction: row; justify-content: flex-start; overflow-x: auto; padding: 6px 10px; gap: 4px; }
+  .shell-nav > .flex-1 { display: none; }
+  .shell-nav .nav-item { width: auto; height: 54px; min-width: 72px; flex-shrink: 0; flex-direction: column; gap: 3px; border-left: 0; }
+  .nav-label { display: block; font-size: 11px; white-space: nowrap; }
+  .shell-main { overflow: visible; padding: 10px; }
+  .shell-main > div { min-height: 440px; }
+  .explorer-panels { grid-template-columns: minmax(0, 1fr); overflow: visible; }
+  .explorer-catalog { max-height: 350px; }
+  .explorer-globe { height: 400px; min-height: 400px; }
+  .explorer-detail { grid-column: auto; min-height: 260px; }
+  .workspace-panels { flex-direction: column; overflow: visible; }
+  .workspace-panels > * { width: 100%; flex: none; min-height: 180px; }
+  .workspace-panels .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .time-bar { gap: 8px; padding: 10px; }
+  .time-bar > .flex-1 { display: none; }
+  .time-bar > .text-right { text-align: left; }
+  .time-bar .btn { min-height: 40px; }
+  .btn { min-height: 40px; }
+  input.input, select.input { min-height: 40px; font-size: 16px; }
 }
 
 @layer components {

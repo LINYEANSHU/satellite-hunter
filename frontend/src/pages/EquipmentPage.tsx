@@ -18,7 +18,7 @@ export default function EquipmentPage() {
   useEffect(() => {
     gameApi.catalog().then((c) => {
       setCats(c.categories)
-    })
+    }).catch((e) => setMsg(tr(e)))
   }, [])
 
   const buy = async (catalogId: string, price: number) => {
@@ -59,20 +59,20 @@ export default function EquipmentPage() {
             <div className="panel-header">
               {(t.equip.cats as Record<string, string>)[cat.category] ?? cat.category}
             </div>
-            <div className="grid grid-cols-3 gap-2 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 p-3">
               {cat.items.map((it) => (
                 <div key={it.id} className="rounded border  bg-ground-2/50 p-3 flex flex-col" data-testid={`cat-${it.id}`}>
                   <div className="flex justify-between items-start">
-                    <span className="text-ink text-sm font-medium">{catalogItem(it.catalog_id ?? it.id ?? '', it.name, t).name}</span>
+                    <span className="text-ink text-sm font-medium">{catalogItem(it.id, it.name, t).name}</span>
                     <span className={`chip ${(it.price ?? 0) === 0 ? '' : 'text-warn border-warn/40'}`}>
                       {(it.price ?? 0) === 0 ? t.equip.initial : `₡${it.price}`}
                     </span>
                   </div>
                   <p className="text-[12.5px] text-ink-dim mt-1 leading-relaxed flex-1">
-                    {catalogItem(it.catalog_id ?? it.id ?? '', it.desc, t).desc}
+                    {catalogItem(it.id, it.desc, t).desc}
                   </p>
                   <div className="mt-2 space-y-0.5 data text-[12px] text-ink-dim">
-                    <SpecLine specs={it.specs} t={t} />
+                    <SpecLine specs={it} t={t} />
                   </div>
                   <button
                     className="btn btn-primary h-7 text-xs mt-2"

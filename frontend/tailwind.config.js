@@ -6,24 +6,24 @@ export default {
       colors: {
         // DESIGN.md：一地一墨一强调，表面靠明度阶梯分隔
         ground: {
-          0: '#07090d',
-          1: '#0c1016',
-          2: '#121822',
-          3: '#1a2230',
-          4: '#242e40',
+          0: '#091c29',
+          1: '#102e3b',
+          2: '#183e4a',
+          3: '#23515a',
+          4: '#28565f',
         },
         ink: {
-          DEFAULT: '#e8edf4',
-          dim: '#8b98ab',
-          faint: '#77839b',
+          DEFAULT: '#f6f0df',
+          dim: '#b7cec9',
+          faint: '#9ebdb7',
         },
         signal: {
-          DEFAULT: '#3fd6e8',
-          deep: '#1899aa',
+          DEFAULT: '#edbb70',
+          deep: '#c89446',
         },
-        ok: '#4ade80',
-        warn: '#fbbf24',
-        danger: '#f87171',
+        ok: '#83d7b2',
+        warn: '#edbb70',
+        danger: '#f39882',
       },
       fontFamily: {
         sans: ['Inter', '"Noto Sans SC"', 'system-ui', 'sans-serif'],

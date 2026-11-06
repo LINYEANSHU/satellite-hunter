@@ -13,15 +13,15 @@ export default function StatusBar({
   const { credits, researchPoints, level, saveName } = useGameStore()
   const { t } = useLang()
   return (
-    <div className="flex items-center gap-4 text-[12px] text-ink-dim">
-      <span className={`inline-flex items-center gap-1.5 ${backendDown ? 'text-danger' : 'text-ok'}`}>
-        <span className={`status-dot ${backendDown ? 'bg-danger' : 'bg-ok'}`} />
-        {backendDown ? t.topbar.offline : t.topbar.online}
+    <div className="shell-status flex items-center gap-4 text-[12px] text-ink-dim" role="status">
+      <span className={`inline-flex items-center gap-1.5 ${backendDown ? 'text-danger' : caps ? 'text-ok' : ''}`}>
+        <span className={`status-dot ${backendDown ? 'bg-danger' : caps ? 'bg-ok' : 'bg-ink-dim'}`} />
+        {backendDown ? t.topbar.offline : caps ? t.topbar.online : t.common.loading}
       </span>
       {caps && (
         <span
           title={caps.satdump.note || t.topbar.satdumpAvailable}
-          className={`inline-flex items-center gap-1 ${caps.satdump.installed ? 'text-ok' : 'text-warn'}`}
+          className={`satdump-status inline-flex items-center gap-1 ${caps.satdump.installed ? 'text-ok' : 'text-warn'}`}
         >
           SatDump {caps.satdump.installed ? (caps.satdump.version ?? '') : t.topbar.satdumpMissing}
         </span>

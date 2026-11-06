@@ -87,7 +87,7 @@ export default function AchievementsPage() {
                 </span>
               )}
             </h3>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
               {research.items.map((r) => {
                 const txt = researchText(r)
                 return (
@@ -113,7 +113,7 @@ export default function AchievementsPage() {
 
         <section>
           <h3 className="text-xs text-ink-dim uppercase tracking-[0.2em] mb-2">{t.ach.unlockedSection}</h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
             {unlocked.length === 0 && <div className="text-xs text-ink-dim">{t.ach.emptyHint}</div>}
             {unlocked.map((a) => {
               const txt = achText(a)
@@ -136,7 +136,7 @@ export default function AchievementsPage() {
 
         <section>
           <h3 className="text-xs text-ink-dim uppercase tracking-[0.2em] mb-2">{t.ach.lockedSection}</h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
             {locked.map((a) => {
               const txt = achText(a)
               return (

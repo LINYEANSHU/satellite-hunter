@@ -39,7 +39,7 @@ export default function SettingsPage() {
       {error && <div className="panel p-3 mb-3 text-danger text-sm">{error}</div>}
 
       {caps && (
-        <div className="grid grid-cols-2 gap-3 max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl">
           <section className="panel">
             <div className="panel-header">{t.settings.app}</div>
             <div className="p-3 text-sm space-y-1.5">

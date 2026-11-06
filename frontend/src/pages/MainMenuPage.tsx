@@ -15,11 +15,13 @@ export default function MainMenuPage() {
   const [saves, setSaves] = useState<SaveInfo[]>([])
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [backendDown, setBackendDown] = useState(false)
+  const [creating, setCreating] = useState(false)
   const setSession = useGameStore((s) => s.setSession)
   const { t } = useLang()
 
   const refresh = useCallback(() => {
-    api.capabilities().then(setCaps).catch((e) => setError(e.message))
+    api.capabilities().then((value) => { setCaps(value); setBackendDown(false) }).catch((e) => { setBackendDown(true); setError(e.message) })
     gameApi.saves().then(setSaves).catch((e) => setError(e.message))
   }, [])
 
@@ -40,7 +42,9 @@ export default function MainMenuPage() {
   }
 
   const create = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || creating) return
+    setCreating(true)
+    setError(null)
     try {
       const s = await gameApi.createSave(newName.trim())
       setNewName('')
@@ -56,6 +60,8 @@ export default function MainMenuPage() {
       })
     } catch (e) {
       setError(tr(e))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -82,7 +88,7 @@ export default function MainMenuPage() {
           <p className="mt-6 text-[16px] text-ink-dim leading-relaxed max-w-lg rise" style={{ animationDelay: '80ms' }}>
             {t.menu.body}
           </p>
-          <div className="mt-8 flex items-center gap-4 rise" style={{ animationDelay: '160ms' }}>
+          <div className="mt-8 flex flex-wrap items-center gap-4 rise" style={{ animationDelay: '160ms' }}>
             <button className="btn-solid h-11 px-6 text-[15px]" onClick={() => nav('/explorer')} data-testid="enter-explorer">
               {t.menu.enter}
             </button>
@@ -90,12 +96,12 @@ export default function MainMenuPage() {
           </div>
 
           <div
-            className="mt-9 flex items-center gap-5 text-[13px] text-ink-dim rise"
+            className="mt-9 flex flex-wrap items-center gap-5 text-[13px] text-ink-dim rise"
             style={{ animationDelay: '240ms' }}
           >
             <span className="inline-flex items-center gap-1.5">
-              <span className={`status-dot ${error ? 'bg-danger' : 'bg-ok'}`} />
-              {t.menu.svc} {error ? t.menu.svcDown : t.menu.svcOk}
+              <span className={`status-dot ${backendDown ? 'bg-danger' : caps ? 'bg-ok' : 'bg-ink-dim'}`} />
+              {t.menu.svc} {backendDown ? t.menu.svcDown : caps ? t.menu.svcOk : t.common.loading}
             </span>
             <span className="inline-flex items-center gap-1.5">
               SatDump
@@ -105,7 +111,7 @@ export default function MainMenuPage() {
             </span>
             {caps && <span className="data">v{caps.app.version}</span>}
           </div>
-          {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}
+          {error && <p role="alert" className="mt-2 text-[13px] text-danger">{error}</p>}
         </div>
 
         {/* 右：地球实拍（NASA 公有领域），占满右列 */}
@@ -169,8 +175,10 @@ export default function MainMenuPage() {
                   title={t.menu.deleteTitle}
                   onClick={async () => {
                     if (confirm(fmt(t.menu.deleteConfirm, { name: s.name }))) {
-                      await gameApi.deleteSave(s.id)
-                      refresh()
+                      try {
+                        await gameApi.deleteSave(s.id)
+                        refresh()
+                      } catch (e) { setError(tr(e)) }
                     }
                   }}
                 >
@@ -182,14 +190,17 @@ export default function MainMenuPage() {
               <input
                 className="input max-w-xs !h-9"
                 placeholder={t.menu.newSavePh}
+                aria-label={t.menu.newSavePh}
+                maxLength={80}
+                disabled={creating}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && void create()}
                 data-testid="new-save-input"
               />
-              <button className="btn !h-9" onClick={() => void create()} data-testid="create-save">
+              <button className="btn !h-9" disabled={creating || !newName.trim()} onClick={() => void create()} data-testid="create-save">
                 <Icon name="plus" size={14} />
-                {t.menu.create}
+                {creating ? t.common.loading : t.menu.create}
               </button>
             </div>
           </div>

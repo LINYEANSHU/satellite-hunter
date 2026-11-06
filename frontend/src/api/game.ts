@@ -38,9 +38,18 @@ export interface EquipmentItem {
   condition: number
 }
 
+/** Catalog definitions expose RF/game specifications directly; owned equipment uses .specs. */
+export interface CatalogDefinition extends Record<string, unknown> {
+  id: string
+  name: string
+  desc: string
+  price: number
+  category: string
+}
+
 export interface CatalogCategory {
   category: string
-  items: (EquipmentItem & { id?: string })[]
+  items: CatalogDefinition[]
 }
 
 export interface MissionView {

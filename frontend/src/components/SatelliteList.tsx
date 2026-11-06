@@ -35,6 +35,10 @@ export default function SatelliteList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => () => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current)
+  }, [])
+
   const groupMeta = useMemo(
     () => Object.fromEntries(groups.map((g) => [g.group, g])),
     [groups],
@@ -70,6 +74,7 @@ export default function SatelliteList() {
             key={g.group}
             className={`chip cursor-pointer ${g.group === currentGroup ? 'text-signal border-signal/50' : 'hover:text-ink'}`}
             onClick={() => setGroup(g.group)}
+            aria-pressed={g.group === currentGroup}
             title={fmt(t.satList.groupTip, {
               label: groupLabel(g.group, g.label),
               count: g.count ? fmt(t.satList.groupCount, { n: g.count }) : '',
@@ -87,6 +92,7 @@ export default function SatelliteList() {
         <input
           className="input"
           placeholder={t.satList.searchPh}
+          aria-label={t.satList.searchPh}
           value={searchInput}
           onChange={(e) => onSearchChange(e.target.value)}
           data-testid="sat-search"

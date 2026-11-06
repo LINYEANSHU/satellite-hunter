@@ -1,124 +1,87 @@
-<p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="Satellite Hunter：地面站模拟游戏 —— 真实 SGP4 轨道、过境预报、链路预算与 SatDump 信号解码">
-</p>
+**简体中文** · [English](README.en.md)
 
-<p align="center">
-  <a href="README.en.md">English</a> · <b>中文</b>
-</p>
+# Satellite Hunter · 地面站模拟
 
-<p align="center">
-  <a href="https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml"><img src="https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/node-22%2B-339933?logo=nodedotjs&logoColor=white" alt="Node 22+">
-</p>
+从选址建站到预测过境、追踪接收和分析录波：用真实轨道传播搭建自己的卫星观测网络。
 
-**Satellite Hunter** 是一款基于真实轨道数据的地面站模拟游戏：所有卫星都来自 CelesTrak 的真实两行根数（TLE/GP），用 SGP4 传播；过境预报、多普勒、链路预算全部按真实物理计算，而价格与奖励是游戏平衡数值。你练出来的是真的能用的技能。
+<img src="assets/readme/hero.svg" width="100%" alt="Satellite Hunter · 地面站模拟">
 
-## 玩法循环
+[![CI](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml)
+[![MIT](https://img.shields.io/badge/license-MIT-54775a.svg)](LICENSE)
 
-```
-选址建站 → 预报过境 → 追踪接收 → 解码分析 → 得分·成就·扩建
-```
+## 实际界面
 
-1. **选址建站** —— 在 3D 地球上点击任意位置放置地面站，设定最小仰角；
-2. **预报过境** —— SGP4 传播 + 过境缓存，给出未来 24–72h 的 AOS/LOS、最高仰角与方位角；
-3. **追踪接收** —— 转台实时指向卫星，监控方位/仰角、SNR、多普勒与数据缓存；
-4. **解码分析** —— 导入 IQ 录波查看频谱/瀑布图/星座图，或交给外部 SatDump 真实解码；
-5. **得分·成就·扩建** —— 赚取 Credits 与研究点数，解锁 36 项成就，把单站升级为全球观测网络。
+<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter · 地面站模拟 — desktop interface">
 
-无需任何无线电台硬件即可完整游玩；接上真实 SDR 录波后，分析流程同样适用。
+<details>
+<summary>展开手机界面</summary>
 
-## 特性
+<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter · 地面站模拟 — mobile interface">
 
-- **真实轨道系统**：CelesTrak GP/TLE 拉取 + 2 小时缓存限速，SGP4 全量传播，开发期经 Skyfield 交叉验证
-- **过境预报引擎**：带缓存的过境搜索（AOS/LOS/最高仰角/AOS·LOS 方位角），临近过境自动倒计时提醒
-- **物理合理的接收模型**：链路预算决定成败（设备增益、噪声系数、频段覆盖、转台指向），结果用种子化抖动保持可复现（SIMULATED_RF）
-- **信号实验室**：频谱、瀑布图、IQ 波形、星座图；SatDump 以外部进程集成，解码产物可收藏进存档
-- **36 项事件驱动成就** + 研究加成系统 + 确定性自动调度器
-- **3D 地球**：Three.js 渲染地球、实时卫星位置、选中标记与尾迹、轨道线与地面站
+</details>
 
 ## 快速开始
 
-前置要求：Python 3.11+、Node.js 20+（CI 在 Node 22 上验证）。可选：SatDump（用于真实信号解码，未安装不影响其余功能，见 `docs/satdump.md`）。
+需要 Python 3.11+、Node.js 20+（CI 使用 Node 22）。SatDump 为可选外部程序，不是基础游玩的前置条件。
 
-### 一键启动
+Windows 双击或在命令行运行：
 
 ```bat
-:: Windows（cmd / 双击）
 scripts\dev.bat
 ```
 
+Git Bash / Linux / macOS：
+
 ```sh
-# Git Bash / Linux / macOS
-./scripts/dev.sh
+bash scripts/dev.sh
 ```
 
-脚本会自动创建虚拟环境、安装依赖，并启动后端（http://localhost:8000）与前端（http://localhost:5273）。浏览器访问 **http://localhost:5273**。
+启动脚本安装依赖并启动后端 `http://localhost:8000`、前端 `http://localhost:5273`；浏览器打开后者。首次启动需要可用的依赖下载网络。
 
-### 手动启动
+创建存档 → 在探索页选择卫星 → 建立地面站 → 购买并安装设备 → 查看过境窗口并安排任务。
+
+## 观测与经营
+
+- **真实轨道，明确区分模拟**：CelesTrak GP/TLE 数据由 SGP4 传播；接收模型使用标为 `SIMULATED_RF` 的链路预算与种子化抖动。价格、奖励和研究属于游戏机制。
+- **地面站网络**：选址、最小仰角、天线/接收机/转台设备、任务和研究相互影响。
+- **过境预报**：AOS/LOS、最高仰角、方位与多普勒帮助选择接收窗口。
+- **信号实验室**：检查 IQ 波形、频谱、瀑布图和星座统计；可把录波交给外部 SatDump 解码。
+- **九个页面**：主菜单、探索、地面站、设备、任务、信号实验室、百科、成就和设置；提供中英文与窄屏导航。
+
+设备目录和库存设备使用各自的数据结构，设备页可正常加载；创建存档、请求和解码能力状态都有反馈。快捷键尊重输入框与按钮，数字 `1`–`5` 对应时间栏五档速度。
+
+## 验证与开发
 
 ```sh
-# 后端
+# 从项目根目录执行；先安装对应目录依赖
 cd backend
-python -m venv .venv
-.venv/Scripts/activate          # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+python -m pytest -q
 ```
 
 ```sh
-# 前端（另开终端）
+# 另开终端，从项目根目录执行
 cd frontend
-npm install
-npm run dev                     # http://localhost:5273
+npm ci
+npm run test
+npm run build
 ```
 
-### 测试
+后端套件包含启动入口回归，前端现有 5 项测试通过，前端生产构建成功。真实本地 API 的浏览器检查覆盖九条路由的桌面/手机布局、设备目录、独立评审存档和时间快捷键。
 
-```sh
-cd backend && python -m pytest -q     # 后端单元/集成测试（77 项）
-cd frontend && npm run test           # 前端测试（vitest）
-```
+WebGL 浏览器验证使用 CPU SwiftShader，没有启用硬件 GPU；没有测试真实 SDR 收信或真实 SatDump 解码，后端适配测试使用 mock。正常浏览器的 3D 渲染后端由浏览器决定。
 
-## 架构简述
+## 兼容与边界
 
-```
-frontend (React + Three.js + Zustand)
-   │  REST + WebSocket
-backend (FastAPI)
-   ├─ orbit/    CelesTrak GP 拉取 → 磁盘缓存 → SGP4 传播 → 过境搜索（带缓存）
-   ├─ game/     存档、设备目录、任务调度、RF 链路模型、成就、事件、研究
-   ├─ dsp/      录波导入、频谱/瀑布/星座统计
-   └─ satdump/  外部 SatDump 进程适配层（Windows PATH / WSL）
-SQLite 存档（backend/data/，全部运行数据可随时删除重建）
-```
+3D 地球需要 WebGL。轨道数据更新依赖网络，可使用缓存；TLE 有时效，旧根数不适合高精度预报。RF 模型是游戏近似，不能替代实测链路设计。实际录波解码需要单独安装 SatDump；历史模态框的完整焦点管理和实体触屏手势仍有完善空间。
 
-- **CelesTrak 拉取**：按分组（空间站/气象/业余/科学等）拉取 GP 数据，磁盘缓存 + 最小 2 小时重取间隔
-- **SGP4 传播**：批量位置快照 + 前端插值，渲染热路径无逐帧 HTTP 请求
-- **过境缓存**：站点×分组×时刻的过境结果落盘，重复查询零成本
-- **SatDump 适配层**：检测本机 SatDump 可执行文件（或 WSL 发行版），提交解码作业并回传日志与产物
+运行数据位于 `backend/data/`，不随代码提交。主项目 MIT 许可不改变外部程序、数据和图像的原有许可。
 
-更多细节见 [docs/architecture.md](docs/architecture.md)、[docs/orbit-data.md](docs/orbit-data.md) 与 [docs/api.md](docs/api.md)。
+## 文档与许可
 
-## 文档
+[玩法](docs/gameplay.md) · [架构](docs/architecture.md) · [API](docs/api.md) · [轨道数据](docs/orbit-data.md) · [SatDump](docs/satdump.md) · [已知边界](docs/known-issues.md)
 
-- [开发计划与进度](DEVELOPMENT_PLAN.md)
-- [系统架构](docs/architecture.md)
-- [轨道数据来源](docs/orbit-data.md)
-- [玩法说明](docs/gameplay.md)
-- [API 文档](docs/api.md)（运行时另有 http://localhost:8000/docs 自动生成交互式文档）
-- [已知问题与后续计划](docs/known-issues.md)
+代码使用 [MIT](LICENSE)。SatDump 以独立进程集成并保留 GPL-3.0；SGP4、CelesTrak、NASA/Wikimedia 图像及其他来源的归属见 [许可与素材说明](docs/licenses.md) 及页面图像署名。
 
-## 参考与致谢
+## 贡献者
 
-- [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) —— 轨道传播核心（SGP4/SDP4）
-- [Skyfield](https://github.com/skyfielders/python-skyfield) —— 开发期用于轨道计算交叉验证
-- [CelesTrak](https://celestrak.org/) —— TLE/GP 轨道数据来源（感谢 Dr. T.S. Kelso）
-- [SatDump](https://github.com/SatDump/SatDump) —— 外部卫星信号解码工具，以独立进程方式适配（GPL-3.0，归属信息见 [docs/licenses.md](docs/licenses.md)）
-- [Three.js](https://github.com/mrdoob/three.js) 与 React 生态 —— 3D 地球可视化
-- 页面影像来自 NASA（公有领域）与 Wikimedia Commons 摄影者（署名见主菜单页脚）
-
-## 许可
-
-本项目代码以 [MIT](LICENSE) 许可发布。依赖的第三方组件（SatDump 等）以独立进程方式集成，各自保留原有许可。
+- [LINYEANSHU](https://github.com/LINYEANSHU)

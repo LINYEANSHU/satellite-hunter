@@ -62,10 +62,10 @@ def mock_satdump(tmp_path, monkeypatch):
     script.write_text(MOCK_SATDUMP_PY, encoding="utf-8")
     if os.name == "nt":
         cmd = tmp_path / "mock_satdump.cmd"
-        # cmd.exe 以系统 ANSI 代码页(mbcs)解析批处理——venv 路径含中文，必须用 mbcs 编码
-        cmd.write_bytes(
-            f'@echo off\r\n"{os.sys.executable}" "%~dp0mock_satdump.py" %*\r\n'.encode("mbcs", "replace")
-        )
+        # 保持批处理为 ASCII；Unicode 路径通过环境变量传递，避免 ANSI/UTF-8
+        # 控制台代码页不一致时把中文 venv 路径读坏。monkeypatch 在测试后恢复。
+        monkeypatch.setenv("SH_TEST_PYTHON", os.sys.executable)
+        cmd.write_bytes(b'@echo off\r\n"%SH_TEST_PYTHON%" "%~dp0mock_satdump.py" %*\r\n')
     else:
         cmd = tmp_path / "mock_satdump"
         cmd.write_text(

@@ -26,7 +26,7 @@ if [ ! -d frontend/node_modules ]; then
 fi
 
 echo "启动后端 (http://localhost:8000)..."
-"$PYBIN" -m uvicorn app.main:app --reload --port 8000 &
+"$PYBIN" -m uvicorn app.main:app --app-dir backend --reload --port 8000 &
 BACK_PID=$!
 
 echo "启动前端 (http://localhost:5273)..."

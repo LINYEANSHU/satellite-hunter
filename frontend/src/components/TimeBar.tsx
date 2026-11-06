@@ -15,7 +15,7 @@ function fmtLocal(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-/** 全局时间控制：现实时间 / 暂停 / 1×-1000× / 自定义时刻 / 回到现在。快捷键：空格、1-4、N。 */
+/** 全局时间控制：现实时间 / 暂停 / 1×-1000× / 自定义时刻 / 回到现在。快捷键：空格、1-5、N。 */
 export default function TimeBar() {
   const { paused, scale, setPaused, setScale, resetToReal, jumpTo, now } = useTimeStore()
   const { t } = useLang()
@@ -31,11 +31,12 @@ export default function TimeBar() {
   const isReal = Math.abs(offsetS) < 3 && scale === 1 && !paused
 
   return (
-    <div className="flex items-center gap-3 px-3 h-12 bg-ground-1 text-[13px]">
+    <div className="time-bar flex items-center gap-3 px-3 min-h-12 py-2 bg-ground-1 text-[13px]" role="region" aria-label={t.time.jumpTitle}>
       <button
         className="btn w-9 px-0"
         onClick={() => setPaused(!paused)}
         title={paused ? t.time.playTitle : t.time.pauseTitle}
+        aria-label={paused ? t.time.playTitle : t.time.pauseTitle}
       >
         <Icon name={paused ? 'play' : 'pause'} size={14} />
       </button>
@@ -47,6 +48,7 @@ export default function TimeBar() {
             className={`btn w-11 px-0 ${scale === s && !paused ? 'btn-primary' : ''}`}
             onClick={() => setScale(s)}
             title={fmt(t.time.speedTitle, { n: s, key: SPEEDS.indexOf(s) + 1 })}
+            aria-pressed={scale === s && !paused}
           >
             {s}×
           </button>
@@ -57,9 +59,11 @@ export default function TimeBar() {
         type="datetime-local"
         className="input !w-44 !h-8 text-[12px]"
         onChange={(e) => {
-          if (e.target.value) jumpTo(new Date(e.target.value).getTime())
+          const timestamp = new Date(e.target.value).getTime()
+          if (Number.isFinite(timestamp)) jumpTo(timestamp)
         }}
         title={t.time.jumpTitle}
+        aria-label={t.time.jumpTitle}
       />
 
       <div className="flex-1" />

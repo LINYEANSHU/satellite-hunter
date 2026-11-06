@@ -47,14 +47,14 @@ export default function ExplorerPage() {
 
   return (
     <div className="h-full flex flex-col gap-2 min-h-0">
-      <div className="flex-1 flex gap-2 min-h-0 rise">
+      <div className="explorer-panels flex-1 gap-2 min-h-0 rise">
         {/* 左：目录与筛选 */}
-        <div className="w-60 shrink-0 min-h-0">
+        <div className="explorer-catalog min-w-0 min-h-0">
           <SatelliteList />
         </div>
 
         {/* 中：3D 地球 */}
-        <div className="flex-1 relative panel overflow-hidden min-w-0">
+        <div className="explorer-globe relative panel overflow-hidden min-w-0">
           <GlobeScene />
 
           {/* 顶部悬浮状态条 */}
@@ -82,7 +82,7 @@ export default function ExplorerPage() {
         </div>
 
         {/* 右：详情 */}
-        <div className="w-72 shrink-0 min-h-0">
+        <div className="explorer-detail min-w-0 min-h-0">
           <SatelliteDetail />
         </div>
       </div>
@@ -90,8 +90,8 @@ export default function ExplorerPage() {
       {/* 建站弹窗 */}
       {place && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="place-station-modal">
-          <div className="panel w-80 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-ink">{t.explorer.placeModal}</h3>
+          <div className="panel w-80 max-w-[92vw] p-4 space-y-3" role="dialog" aria-modal="true" aria-labelledby="place-station-title" onKeyDown={(e) => { if (e.key === 'Escape') setPlace(null) }}>
+            <h3 id="place-station-title" className="text-sm font-semibold text-ink">{t.explorer.placeModal}</h3>
             <div className="data text-xs text-signal">
               {fmt(t.explorer.latLon, { lat: place.lat.toFixed(3), lon: place.lon.toFixed(3) })}
             </div>

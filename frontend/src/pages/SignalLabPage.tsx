@@ -240,7 +240,7 @@ export default function SignalLabPage() {
 
       {err && <div className="panel px-3 py-2 text-xs text-danger">{err}</div>}
 
-      <div className="flex gap-3 flex-1 min-h-0">
+      <div className="workspace-panels flex gap-3 flex-1 min-h-0">
         {/* 左：录波列表 + 导入 */}
         <div className="w-64 shrink-0 panel flex flex-col min-h-0">
           <div className="panel-header">
