@@ -92,14 +92,16 @@ def _elevation_series(
 def _bisect_cross(
     sat, station_ecef, jd0, fr0, t_lo_s: float, t_hi_s: float, min_el: float,
     enu: np.ndarray | None = None,
+    rising: bool = True,
 ) -> float:
-    """在 [t_lo, t_hi] 内二分仰角=min_el 的交点（t_lo 低于、t_hi 高于）。"""
+    """在 [t_lo, t_hi] 内二分仰角=min_el 的交点。rising=True 表示升起(AOS)，False 表示落下(LOS)。"""
     for _ in range(20):
         mid = 0.5 * (t_lo_s + t_hi_s)
         if t_hi_s - t_lo_s < 1.0:
             return mid
         el_mid, _ = _elevation_series(sat, station_ecef, np.array([mid]), jd0, fr0, enu=enu)
-        if el_mid[0] >= min_el:
+        above = el_mid[0] >= min_el
+        if (rising and above) or (not rising and not above):
             t_hi_s = mid
         else:
             t_lo_s = mid
@@ -159,9 +161,9 @@ def predict_passes(
     for k in range(1, len(times)):
         was, now = el[k - 1] >= min_elevation_deg, el[k] >= min_elevation_deg
         if not was and now:
-            seg_start = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu)
+            seg_start = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu, rising=True)
         elif was and not now and seg_start is not None:
-            seg_end = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu)
+            seg_end = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu, rising=False)
             _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, seg_end, min_elevation_deg, enu=enu)
             seg_start = None
             if len(passes) >= max_passes:

@@ -15,6 +15,7 @@ import json
 import os
 import queue
 import re
+import shlex
 import shutil
 import subprocess
 import threading
@@ -32,9 +33,9 @@ _PROGRESS_RE = re.compile(r"\b(\d{1,3})\s?%")
 
 
 def _build_command(prefix: list[str], args: list[str]) -> list[str]:
-    """Windows: 直接执行；WSL: 前缀 wsl -d <distro> -- bash -lc。"""
+    """Windows: 直接执行；WSL: 前缀 wsl -d <distro> -- bash -lc（逐参数 shlex.quote 防注入/空格断词）。"""
     if prefix:
-        return prefix + ["bash", "-lc", " ".join(args)]
+        return prefix + ["bash", "-lc", " ".join(shlex.quote(a) for a in args)]
     return args
 
 
@@ -84,7 +85,7 @@ def list_pipelines() -> tuple[list[PipelineInfo], str]:
     prefix, source, version = satdump_invocation()
     if prefix is None:
         return [], "SatDump 未安装"
-    base = prefix + [settings.satdump_bin]
+    base = [settings.satdump_bin]
     candidates = [
         base + ["pipelines"],
         base + ["pipeline", "list"],

@@ -6,6 +6,7 @@ DSP 接口全部分块按需计算（需求 12.2）。
 from __future__ import annotations
 
 import re
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -67,9 +68,14 @@ async def import_recording(
 ) -> dict:
     if format not in IQ_FORMATS:
         raise AppError(400, "BAD_FORMAT", f"不支持的 IQ 格式: {format}（支持: {', '.join(IQ_FORMATS)}）")
-    name = _SAFE_NAME.sub("_", file.filename or "recording.iq")[:200] or "recording.iq"
+    name = _SAFE_NAME.sub("_", Path(file.filename or "recording.iq").name)[:200] or "recording.iq"
+    safe_save = re.sub(r"[^\w\-]", "_", save_id)[:16] or "save"
+    unique = uuid.uuid4().hex[:8]
 
-    dest = settings.recordings_dir / f"{save_id[:8]}_{name}"
+    root_dir = settings.recordings_dir.resolve()
+    dest = (root_dir / f"{safe_save}_{unique}_{name}").resolve()
+    if dest.parent != root_dir:
+        raise AppError(400, "BAD_PATH", "非法的录波文件名或存档标识")
     size = 0
     with open(dest, "wb") as f:
         while chunk := await file.read(1024 * 1024):
@@ -132,10 +138,12 @@ def delete_recording(recording_id: str, db: Session = Depends(get_db)) -> dict:
     return {"deleted": recording_id}
 
 
-def _get_rec(db: Session, recording_id: str) -> Recording:
+def _get_rec(db: Session, recording_id: str, require_file: bool = True) -> Recording:
     r = db.get(Recording, recording_id)
     if r is None:
         raise AppError(404, "RECORDING_NOT_FOUND", "录波不存在")
+    if require_file and not Path(r.path).exists():
+        raise AppError(404, "RECORDING_FILE_MISSING", "录波磁盘文件不存在")
     return r
 
 

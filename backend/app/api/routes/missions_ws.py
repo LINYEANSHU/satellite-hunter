@@ -63,7 +63,7 @@ async def ws_endpoint(ws: WebSocket, topic: str) -> None:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 continue
-            if msg.get("action") == "ping":
+            if isinstance(msg, dict) and msg.get("action") == "ping":
                 await ws.send_text(json.dumps({"type": "pong", "ts": msg.get("ts")}))
     except WebSocketDisconnect:
         await hub.disconnect(topic, ws)

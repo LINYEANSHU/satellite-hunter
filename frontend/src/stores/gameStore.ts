@@ -30,6 +30,7 @@ const initial: GameSession = {
 }
 
 export const useGameStore = create<GameStore>((set) => ({
+  ...initial,
   // 恢复上次活跃存档（页面刷新后保持上下文；数值仍以服务器为准）
   ...(() => {
     try {
@@ -44,14 +45,22 @@ export const useGameStore = create<GameStore>((set) => ({
     set(s)
     const st = useGameStore.getState()
     if (st.saveId) {
-      localStorage.setItem(
-        'sh-save',
-        JSON.stringify({ saveId: st.saveId, saveName: st.saveName }),
-      )
+      try {
+        localStorage.setItem(
+          'sh-save',
+          JSON.stringify({ saveId: st.saveId, saveName: st.saveName }),
+        )
+      } catch {
+        /* ignore storage quota/privacy errors */
+      }
     }
   },
   reset: () => {
-    localStorage.removeItem('sh-save')
+    try {
+      localStorage.removeItem('sh-save')
+    } catch {
+      /* ignore */
+    }
     set(initial)
   },
 }))

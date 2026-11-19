@@ -27,6 +27,8 @@ export default function EquipmentPage() {
     setMsg(null)
     try {
       await gameApi.buy(saveId, catalogId)
+      const cur = useGameStore.getState().credits
+      useGameStore.getState().setSession({ credits: Math.max(0, cur - price) })
       setMsg(fmt(t.equip.bought, { price }))
     } catch (e) {
       setMsg(tr(e))
