@@ -9,18 +9,26 @@
 [![CI](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-54775a.svg)](LICENSE)
 
-## 实际界面
+## Windows 桌面版
 
-<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter · 地面站模拟 — desktop interface">
+**[下载 Windows x64 便携版（ZIP）](https://github.com/LINYEANSHU/satellite-hunter/releases/download/windows-v1.0.0/satellite-hunter-windows-x64.zip)**
+
+完整解压 ZIP，再双击应用文件夹中的 `Satellite Hunter.exe`。EXE 会自动启动内置本地后端。进入轨道探索后，跟随新手指引选择卫星并建立地面站。
+
+更新轨道数据需要连接 CelesTrak。更新失败时可回退到缓存数据。录波解码可选用单独安装的 [SatDump](docs/satdump.md)。
+
+<img src="assets/readme/windows-desktop.webp" width="100%" alt="Satellite Hunter Windows 桌面版的轨道探索、新手指引和地球视图">
 
 <details>
-<summary>展开手机界面</summary>
+<summary>展开浏览器的桌面和手机界面</summary>
 
-<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter · 地面站模拟 — mobile interface">
+<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter 浏览器版的桌面轨道探索界面">
+
+<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter 浏览器版的手机界面">
 
 </details>
 
-## 快速开始
+## 浏览器版
 
 需要 Python 3.11+、Node.js 20+（CI 使用 Node 22）。SatDump 为可选外部程序，不是基础游玩的前置条件。
 
@@ -67,6 +75,8 @@ npm run build
 ```
 
 后端套件包含启动入口回归，前端现有 5 项测试通过，前端生产构建成功。真实本地 API 的浏览器检查覆盖九条路由的桌面/手机布局、设备目录、独立评审存档和时间快捷键。
+
+在 Windows x64 上安装 Node.js 24 和 `uv`，从仓库根目录运行 [`node desktop/build.cjs`](desktop/build.cjs) 可重新打包桌面版，产物位于 `desktop/dist/`。
 
 WebGL 浏览器验证使用 CPU SwiftShader，没有启用硬件 GPU；没有测试真实 SDR 收信或真实 SatDump 解码，后端适配测试使用 mock。正常浏览器的 3D 渲染后端由浏览器决定。
 

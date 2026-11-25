@@ -15,10 +15,10 @@ dist/
 *.local
 
 # Runtime data (databases, orbit cache, recordings, outputs)
-backend/data/
-data/
-!data/.gitkeep
-backend/tests/data/
+/backend/data/
+/data/*
+!/data/.gitkeep
+/backend/tests/data/
 
 # Logs
 logs/
@@ -45,3 +45,11 @@ backend/.env
 
 # Local design-skill inspection artifacts
 .taste-skill/
+/REVIEW-2026-11-06.md
+/docs/review-evidence/
+
+# Windows desktop build and smoke-test output
+/desktop/.cache/
+/desktop/dist/
+/desktop/qa/
+/desktop/node_modules/

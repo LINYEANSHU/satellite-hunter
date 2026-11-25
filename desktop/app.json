@@ -1,0 +1,8 @@
+{
+  "id": "satellite-hunter",
+  "name": "Satellite Hunter 卫星猎手",
+  "exe": "Satellite Hunter",
+  "backend": true,
+  "background": "#091c29",
+  "webgl": true
+}

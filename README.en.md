@@ -9,18 +9,26 @@ Build a satellite-observation network: place ground stations, predict passes, tr
 [![CI](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/LINYEANSHU/satellite-hunter/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-54775a.svg)](LICENSE)
 
-## In the app
+## Windows desktop app
 
-<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter · Ground-station simulator — desktop interface">
+**[Download for Windows x64 (portable ZIP)](https://github.com/LINYEANSHU/satellite-hunter/releases/download/windows-v1.0.0/satellite-hunter-windows-x64.zip)**
+
+Extract the entire ZIP, then double-click `Satellite Hunter.exe` inside the app folder. It starts the bundled local backend automatically. Open Orbit Explorer and follow the tutorial to select a satellite and build a ground station.
+
+Orbital updates use CelesTrak and can fall back to cached data. Install [SatDump](docs/satdump.md) separately if you want to decode recordings.
+
+<img src="assets/readme/windows-desktop.webp" width="100%" alt="Satellite Hunter for Windows showing the Orbit Explorer with its tutorial and globe view">
 
 <details>
-<summary>Show the mobile layout</summary>
+<summary>Show the desktop and mobile browser layouts</summary>
 
-<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter · Ground-station simulator — mobile interface">
+<img src="assets/readme/current-desktop.png" width="100%" alt="Satellite Hunter Orbit Explorer in a desktop browser">
+
+<img src="assets/readme/current-mobile.png" width="390" alt="Satellite Hunter in a mobile browser">
 
 </details>
 
-## Start
+## Run in your browser
 
 Use Python 3.11+ and Node.js 20+ (CI uses Node 22). SatDump is an optional external tool, not a prerequisite for the basic game.
 
@@ -67,6 +75,8 @@ npm run build
 ```
 
 The backend suite includes a launcher regression; the existing five frontend tests and production build pass. Browser checks against a real local API cover all nine routes at desktop/phone widths, populated equipment, isolated review saves and time shortcuts.
+
+To package the desktop app, run [`node desktop/build.cjs`](desktop/build.cjs) from the repository root on Windows x64 with Node.js 24 and `uv`. Output goes to `desktop/dist/`.
 
 WebGL verification used CPU SwiftShader without hardware GPU acceleration. Real SDR reception and real SatDump decoding were not tested; adapter tests use mocks. Ordinary browsers choose their own 3D rendering backend.
 

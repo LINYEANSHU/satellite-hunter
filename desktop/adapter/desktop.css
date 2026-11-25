@@ -1,0 +1,177 @@
+.desktop-menu {
+  --menu-gutter: clamp(24px, 4vw, 64px);
+  overscroll-behavior-y: contain;
+}
+
+.desktop-menu-hero {
+  flex: 0 0 auto;
+  min-height: clamp(340px, 48vh, 500px);
+  grid-template-columns: 3fr 2fr;
+}
+
+.desktop-menu-intro {
+  grid-column: 1;
+  padding: 42px var(--menu-gutter) 28px;
+}
+
+.desktop-menu-title {
+  font-size: clamp(35px, 4.3vw, 68px);
+  line-height: 1.09;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.desktop-menu-photo {
+  grid-column: 2;
+  min-height: 0;
+  background: #04070d;
+}
+
+.desktop-menu-photo img {
+  object-position: center 42%;
+}
+
+.desktop-menu-strip,
+.desktop-menu-saves,
+.desktop-menu-footer {
+  padding-inline: var(--menu-gutter);
+}
+
+.desktop-menu-strip > div {
+  height: clamp(64px, 11vh, 114px);
+}
+
+.desktop-menu-saves {
+  padding-top: 20px;
+}
+
+.desktop-menu-saves [data-testid^='save-'] > div > div:first-child {
+  overflow-wrap: anywhere;
+}
+
+.desktop-menu-saves [data-testid='create-save'],
+.desktop-menu-saves [data-testid^='save-'] button {
+  flex-shrink: 0;
+}
+
+.desktop-menu-footer a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.desktop-menu :is(button, a, input):focus-visible,
+.game-shell :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #edbb70;
+  outline-offset: 2px;
+}
+
+.game-shell :is([data-testid='sat-items'], .explorer-detail > .panel) {
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+}
+
+.game-shell [data-testid='sat-items'] button:focus-visible {
+  outline-offset: -2px;
+}
+
+.game-shell [data-testid^='group-'][aria-pressed='true'] {
+  background: #45504a;
+  color: #f6cb86;
+}
+
+.game-shell [data-testid='sat-search'] + div {
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.game-shell [data-testid='sat-search'] + div button {
+  flex: none;
+  padding-block: 3px;
+  white-space: nowrap;
+}
+
+.game-shell .explorer-globe .tag {
+  min-height: 26px;
+  height: auto;
+  padding-block: 4px;
+  line-height: 1.25;
+}
+
+@media (min-width: 960px) {
+  .desktop-menu-saves > div {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+
+  .desktop-menu-saves > div > :is(div, aside) {
+    grid-column: auto;
+  }
+
+  .game-shell .explorer-panels {
+    grid-template-columns: clamp(212px, 17vw, 256px) minmax(0, 1fr) clamp(238px, 20vw, 310px);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: visible;
+    gap: 10px;
+  }
+
+  .game-shell :is(.explorer-detail, .explorer-globe) {
+    grid-column: auto;
+    min-height: 0;
+  }
+}
+
+@media (min-width: 1240px) {
+  .game-shell .shell-nav {
+    width: 134px;
+    align-items: stretch;
+    padding-inline: 8px;
+  }
+
+  .game-shell .shell-nav .nav-item {
+    width: 100%;
+    height: 39px;
+    justify-content: flex-start;
+    gap: 9px;
+    padding-inline: 10px 6px;
+    border-left: 1px solid transparent;
+  }
+
+  .game-shell .shell-nav .nav-item svg {
+    flex: none;
+    width: 17px;
+    height: 17px;
+  }
+
+  .game-shell .shell-nav .nav-item[aria-current='page'] {
+    border-left-color: #edbb70;
+  }
+
+  .game-shell .nav-label {
+    display: block;
+    font-size: 13px;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 959px) {
+  .desktop-menu-hero {
+    grid-template-columns: 3fr 2fr;
+    min-height: 340px;
+  }
+
+  .desktop-menu-intro {
+    padding-top: 48px;
+  }
+}
+
+@media (max-width: 690px) {
+  .desktop-menu-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desktop-menu-photo {
+    grid-column: 1;
+    height: 230px;
+  }
+}
