@@ -19,6 +19,7 @@ const en: typeof zh = {
   },
   nav: {
     explorer: 'Orbit Explorer',
+    solar: 'Solar System',
     station: 'Ground Station',
     equipment: 'Equipment',
     missions: 'Mission Control',

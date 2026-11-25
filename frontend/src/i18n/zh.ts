@@ -17,6 +17,7 @@ const zh = {
   },
   nav: {
     explorer: '轨道探索',
+    solar: '太阳系',
     station: '地面站',
     equipment: '设备管理',
     missions: '任务控制',

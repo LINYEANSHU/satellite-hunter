@@ -11,6 +11,7 @@ import LanguageToggle from './components/LanguageToggle'
 import { useLang } from './i18n'
 import MainMenuPage from './pages/MainMenuPage'
 import ExplorerPage from './pages/ExplorerPage'
+import SolarPage from './pages/SolarPage'
 import StationPage from './pages/StationPage'
 import EquipmentPage from './pages/EquipmentPage'
 import MissionControlPage from './pages/MissionControlPage'
@@ -23,6 +24,7 @@ import { sfxToggleMute } from './lib/sfx'
 
 const NAV_KEYS = [
   { to: '/explorer', key: 'explorer', icon: 'satellite' },
+  { to: '/solar', key: 'solar', icon: 'globe' },
   { to: '/station', key: 'station', icon: 'dish' },
   { to: '/equipment', key: 'equipment', icon: 'wrench' },
   { to: '/missions', key: 'missions', icon: 'route' },
@@ -193,6 +195,7 @@ export default function App() {
       <Route path="/" element={<MainMenuPage />} />
       <Route element={<Shell />}>
         <Route path="/explorer" element={<ExplorerPage />} />
+        <Route path="/solar" element={<SolarPage />} />
         <Route path="/station" element={<StationPage />} />
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/missions" element={<MissionControlPage />} />
