@@ -84,7 +84,7 @@ def satrec_from_omm(omm: dict) -> Satrec:
     """
     from sgp4 import omm as sgp4_omm
 
-    missing = [k for k in _OMM_REQUIRED if not omm.get(k)]
+    missing = [k for k in _OMM_REQUIRED if omm.get(k) in (None, "")]
     if missing:
         raise ValueError(f"OMM 缺少关键字段: {', '.join(missing)}")
 

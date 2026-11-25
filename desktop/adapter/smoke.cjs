@@ -41,7 +41,18 @@ module.exports = async ({ evaluate, send, wait }) => {
   await evaluate("location.hash = '#/explorer'");
   await wait("document.querySelector('[data-testid=globe-canvas] canvas')");
   const orbit = await evaluate("fetch('/api/satellites?group=stations&limit=1', {signal: AbortSignal.timeout(25000)}).then(async r => ({ status: r.status, body: await r.json() })).catch(e => ({error: e.message}))");
-  if (orbit.status === 200) assert.ok(orbit.body.total > 0 && orbit.body.items.length === 1);
-  else assert.match(JSON.stringify(orbit), /ORBIT_DATA_UNAVAILABLE/);
-  return { resumedSave: true, lowAngleMission: true, orbitStatus: orbit.status, orbitTotal: orbit.body?.total ?? null };
+  assert.equal(orbit.status, 200, 'Stations are available even without network');
+  assert.ok(orbit.body.total > 0 && orbit.body.items.length === 1);
+  const group = await evaluate("fetch('/api/satellites/groups').then(r => r.json()).then(rows => rows.find(row => row.group === 'stations'))");
+  assert.ok(group.source && group.newest_epoch);
+  const natural = await evaluate("fetch('/api/solar/catalog?limit=1').then(r => r.json())");
+  assert.deepEqual(natural.counts, { planet: 8, asteroid: 16000, comet: 3918 });
+  const earth = await evaluate("fetch('/api/solar/trajectory/planet-earth?at=2026-11-25T00:00Z&points=24').then(r => r.json())");
+  assert.equal(earth.path_au.length, 24);
+  assert.ok(earth.distance_au > 0.9 && earth.distance_au < 1.1);
+  await evaluate("location.hash = '#/solar'");
+  await wait("document.querySelector('h1')?.textContent.match(/Solar System|太阳系/)");
+  await wait("document.querySelector('canvas') || document.querySelector('svg[role=img]')");
+  return { resumedSave: true, lowAngleMission: true, orbitStatus: orbit.status, orbitTotal: orbit.body.total,
+    orbitSource: group.source, orbitBundled: group.bundled, orbitEpoch: group.newest_epoch, solarCounts: natural.counts };
 };

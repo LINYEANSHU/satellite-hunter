@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # 轨道数据
     celestrak_base: str = "https://celestrak.org/NORAD/elements/gp.php"
     orbit_cache_ttl_hours: float = 2.0  # 同组数据至少间隔 2 小时才重新请求
+    orbit_offline: bool = False
     default_min_elevation_deg: float = 0.0
 
     # 允许使用的卫星分组（CelesTrak GROUP 参数）

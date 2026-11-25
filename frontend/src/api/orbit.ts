@@ -27,6 +27,8 @@ export interface GroupStatus {
   stale: boolean
   error: string | null
   newest_epoch: string | null
+  source?: string
+  bundled?: boolean
 }
 
 export interface Position {

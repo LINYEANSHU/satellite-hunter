@@ -22,7 +22,7 @@ export default function SatelliteList() {
     startPolling,
     loadSatellites,
   } = useCatalogStore()
-  const { t } = useLang()
+  const { t, lang } = useLang()
 
   const [searchInput, setSearchInput] = useState(search)
   const debounceRef = useRef<number | null>(null)
@@ -66,6 +66,12 @@ export default function SatelliteList() {
           )}
         </span>
       </div>
+      {meta?.bundled && stale && (
+        <div className="px-2 py-1 text-xs text-warn" title={meta.source}>
+          {lang === 'zh' ? '随包历史轨道快照' : 'Bundled historical orbital snapshot'}
+          {meta.newest_epoch && ' · ' + meta.newest_epoch.slice(0, 10)}
+        </div>
+      )}
 
       {/* 分组 */}
       <div className="flex flex-wrap gap-1 p-2 ">

@@ -15,7 +15,9 @@
 
 完整解压 ZIP，再双击应用文件夹中的 `Satellite Hunter.exe`。EXE 会自动启动内置本地后端。进入轨道探索后，跟随新手指引选择卫星并建立地面站。
 
-更新轨道数据需要连接 CelesTrak。更新失败时可回退到缓存数据。录波解码可选用单独安装的 [SatDump](docs/satdump.md)。
+更新人造卫星轨道使用 CelesTrak GP。更新失败时可回退到缓存或随包的历史空间站要素。侧栏的「太阳系」可离线查看行星、小行星和彗星的日心轨迹，也可按编号向 JPL 补查。[数据与轨道模型](docs/public-orbital-catalogs.md)
+
+录波解码可选用单独安装的 [SatDump](docs/satdump.md)。
 
 <img src="assets/readme/windows-desktop.webp" width="100%" alt="Satellite Hunter Windows 桌面版的轨道探索、新手指引和地球视图">
 

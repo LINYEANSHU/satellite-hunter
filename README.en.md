@@ -15,7 +15,9 @@ Build a satellite-observation network: place ground stations, predict passes, tr
 
 Extract the entire ZIP, then double-click `Satellite Hunter.exe` inside the app folder. It starts the bundled local backend automatically. Open Orbit Explorer and follow the tutorial to select a satellite and build a ground station.
 
-Orbital updates use CelesTrak and can fall back to cached data. Install [SatDump](docs/satdump.md) separately if you want to decode recordings.
+Earth satellite updates use CelesTrak GP and can fall back to the local cache or a bundled historical station snapshot. The Solar System view calculates heliocentric trajectories for planets, asteroids, and comets from bundled JPL data, with optional lookup by designation. [Sources and orbital models](docs/public-orbital-catalogs.md)
+
+Install [SatDump](docs/satdump.md) separately if you want to decode recordings.
 
 <img src="assets/readme/windows-desktop.webp" width="100%" alt="Satellite Hunter for Windows showing the Orbit Explorer with its tutorial and globe view">
 
