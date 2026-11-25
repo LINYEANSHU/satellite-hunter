@@ -1,0 +1,235 @@
+{
+  "_meta": {
+    "说明": "设备目录。真实 RF 参数（增益/噪声系数/频段）取自公开常见规格；价格/并发等为游戏平衡数值（SIMULATED）。两层数值通过字段名区分：game_ 前缀为游戏平衡参数，其余为真实参考参数。",
+    "bands": {
+      "vhf": [136, 174],
+      "uhf": [400, 470],
+      "l": [1215, 1600],
+      "s": [2000, 2400],
+      "wx": [137, 138]
+    }
+  },
+  "antenna": [
+    {
+      "id": "ant_whip",
+      "name": "简易鞭状天线",
+      "desc": "入门全向天线，无需指向，增益极低。适合新手接收强信号卫星。",
+      "price": 0,
+      "bands": ["vhf", "uhf"],
+      "gain_dbi": 2.15,
+      "directional": false,
+      "polarization": "linear"
+    },
+    {
+      "id": "ant_turnstile",
+      "name": "十字交叉偶极天线",
+      "desc": "圆极化全向天线，改善低仰角接收，气象卫星入门首选。",
+      "price": 450,
+      "bands": ["wx", "vhf"],
+      "gain_dbi": 3.5,
+      "directional": false,
+      "polarization": "circular"
+    },
+    {
+      "id": "ant_yagi_vhf",
+      "name": "VHF 八木天线",
+      "desc": "定向天线，需要转台配合指向，VHF 频段增益显著提升。",
+      "price": 900,
+      "bands": ["vhf"],
+      "gain_dbi": 9.5,
+      "directional": true,
+      "beamwidth_deg": 52,
+      "requires_rotator": true,
+      "polarization": "linear"
+    },
+    {
+      "id": "ant_yagi_uhf",
+      "name": "UHF 八木天线",
+      "desc": "UHF 频段定向天线，业余卫星常用配置。",
+      "price": 950,
+      "bands": ["uhf"],
+      "gain_dbi": 11.0,
+      "directional": true,
+      "beamwidth_deg": 47,
+      "requires_rotator": true,
+      "polarization": "linear"
+    },
+    {
+      "id": "ant_dish_s",
+      "name": "S 波段抛物面天线",
+      "desc": "高增益抛物面天线，可覆盖部分高数据率下行，需精确指向。",
+      "price": 6500,
+      "bands": ["s", "l"],
+      "gain_dbi": 26.0,
+      "directional": true,
+      "beamwidth_deg": 12,
+      "requires_rotator": true,
+      "polarization": "linear"
+    }
+  ],
+  "sdr": [
+    {
+      "id": "sdr_starter",
+      "name": "入门 SDR 接收机",
+      "desc": "低价 USB 电视棒改造，带宽窄、噪声高，但足够接收基本信号。",
+      "price": 0,
+      "freq_min_mhz": 24,
+      "freq_max_mhz": 1766,
+      "sample_rate_msps": 2.4,
+      "noise_figure_db": 6.5,
+      "max_bandwidth_khz": 240
+    },
+    {
+      "id": "sdr_mid",
+      "name": "专业 SDR 接收机",
+      "desc": "更低噪声系数与更宽瞬时带宽，可处理较高数据率下行。",
+      "price": 3200,
+      "freq_min_mhz": 10,
+      "freq_max_mhz": 6000,
+      "sample_rate_msps": 10,
+      "noise_figure_db": 3.5,
+      "max_bandwidth_khz": 1500
+    },
+    {
+      "id": "sdr_pro",
+      "name": "高性能 SDR 接收机",
+      "desc": "宽频、高动态范围、低相噪，面向高数据率与复杂信号。",
+      "price": 12800,
+      "freq_min_mhz": 1,
+      "freq_max_mhz": 7200,
+      "sample_rate_msps": 61.44,
+      "noise_figure_db": 2.5,
+      "max_bandwidth_khz": 10000
+    }
+  ],
+  "amplifier": [
+    {
+      "id": "lna_basic",
+      "name": "前置低噪声放大器",
+      "desc": "改善系统噪声系数，弱信号接收的性价比升级。",
+      "price": 700,
+      "gain_db": 18,
+      "noise_figure_db": 1.2,
+      "bands": ["vhf", "uhf", "wx"]
+    },
+    {
+      "id": "lna_pro",
+      "name": "专业低噪放",
+      "desc": "更低噪声系数，覆盖更宽频段。",
+      "price": 2600,
+      "gain_db": 22,
+      "noise_figure_db": 0.7,
+      "bands": ["vhf", "uhf", "wx", "l", "s"]
+    }
+  ],
+  "filter": [
+    {
+      "id": "flt_saw_vhf",
+      "name": "VHF 声表滤波器",
+      "desc": "抑制带外强干扰，插入损耗小。",
+      "price": 380,
+      "passband_khz": 200,
+      "insertion_loss_db": 1.5,
+      "center_mhz": 145
+    },
+    {
+      "id": "flt_saw_uhf",
+      "name": "UHF 声表滤波器",
+      "desc": "UHF 频段带通滤波。",
+      "price": 380,
+      "passband_khz": 200,
+      "insertion_loss_db": 1.5,
+      "center_mhz": 437
+    },
+    {
+      "id": "flt_wx",
+      "name": "气象频段滤波器",
+      "desc": "137MHz 气象卫星下行专用滤波。",
+      "price": 300,
+      "passband_khz": 150,
+      "insertion_loss_db": 1.8,
+      "center_mhz": 137.5
+    }
+  ],
+  "rotator": [
+    {
+      "id": "rot_manual",
+      "name": "（无转台）",
+      "desc": "固定指向天顶，仅适合全向天线。",
+      "price": 0,
+      "az_range_deg": 0,
+      "el_range_deg": 0,
+      "max_speed_deg_s": 0,
+      "pointing_accuracy_deg": 360
+    },
+    {
+      "id": "rot_basic",
+      "name": "入门天线转台",
+      "desc": "双轴转台，跟随速度有限，高仰角过顶时可能脱靶。",
+      "price": 1500,
+      "az_range_deg": 450,
+      "el_range_deg": 180,
+      "max_speed_deg_s": 2.0,
+      "pointing_accuracy_deg": 3
+    },
+    {
+      "id": "rot_pro",
+      "name": "专业双轴转台",
+      "desc": "高速精确指向，支持低仰角快速过境跟踪。",
+      "price": 5600,
+      "az_range_deg": 450,
+      "el_range_deg": 180,
+      "max_speed_deg_s": 8.0,
+      "pointing_accuracy_deg": 0.8
+    }
+  ],
+  "computer": [
+    {
+      "id": "pc_basic",
+      "name": "基础处理计算机",
+      "desc": "单任务处理能力，支持基础解调。",
+      "price": 0,
+      "concurrent_missions": 1,
+      "processing_units": 10
+    },
+    {
+      "id": "pc_mid",
+      "name": "多核处理工作站",
+      "desc": "支持两路并行接收任务。",
+      "price": 2400,
+      "concurrent_missions": 2,
+      "processing_units": 25
+    },
+    {
+      "id": "pc_pro",
+      "name": "机架式处理集群",
+      "desc": "支持四路并行与高数据率处理。",
+      "price": 8800,
+      "concurrent_missions": 4,
+      "processing_units": 60
+    }
+  ],
+  "storage": [
+    {
+      "id": "sto_basic",
+      "name": "基础数据存储",
+      "desc": "2 GB 缓存空间，满足单次气象过境。",
+      "price": 0,
+      "capacity_gb": 2
+    },
+    {
+      "id": "sto_mid",
+      "name": "扩展存储阵列",
+      "desc": "20 GB，支持连续多任务采集。",
+      "price": 1600,
+      "capacity_gb": 20
+    },
+    {
+      "id": "sto_pro",
+      "name": "大容量存储服务器",
+      "desc": "200 GB，全球网络级数据归档。",
+      "price": 6400,
+      "capacity_gb": 200
+    }
+  ]
+}

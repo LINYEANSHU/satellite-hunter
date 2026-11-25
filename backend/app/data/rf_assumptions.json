@@ -1,0 +1,104 @@
+{
+  "_meta": {
+    "说明": "简化射频模型的游戏假设数据（SIMULATED_RF）。已知卫星的频率来自公开资料（如 ISS 145.800 MHz、NOAA APT 137.x MHz）；无可靠公开参数的卫星使用类别默认值并在 UI 标注为游戏假设。发射功率/所需信噪比等属于游戏平衡数值，不代表真实设备规格。",
+    "categories": {
+      "stations": "space_station",
+      "weather": "weather",
+      "amateur": "amateur",
+      "science": "science",
+      "visual": "other",
+      "geo": "communications",
+      "active": "other"
+    }
+  },
+  "category_defaults": {
+    "weather": {
+      "freq_mhz": 137.62,
+      "bandwidth_khz": 50,
+      "tx_power_dbm": 39,
+      "tx_gain_dbi": 2,
+      "required_snr_db": 9,
+      "data_rate_kbps": 1.2,
+      "modulation": "APT (模拟 FM 副载波)",
+      "note": "游戏假设参数，参考 NOAA APT 公开规格"
+    },
+    "amateur": {
+      "freq_mhz": 437.0,
+      "bandwidth_khz": 20,
+      "tx_power_dbm": 30,
+      "tx_gain_dbi": 0,
+      "required_snr_db": 10,
+      "data_rate_kbps": 9.6,
+      "modulation": "AFSK/GMSK",
+      "note": "游戏假设参数"
+    },
+    "space_station": {
+      "freq_mhz": 145.8,
+      "bandwidth_khz": 30,
+      "tx_power_dbm": 35,
+      "tx_gain_dbi": 2,
+      "required_snr_db": 10,
+      "data_rate_kbps": 9.6,
+      "modulation": "FM",
+      "note": "参考 ISS 公开 FM 中继参数"
+    },
+    "science": {
+      "freq_mhz": 437.0,
+      "bandwidth_khz": 30,
+      "tx_power_dbm": 31,
+      "tx_gain_dbi": 0,
+      "required_snr_db": 10,
+      "data_rate_kbps": 9.6,
+      "modulation": "BPSK",
+      "note": "游戏假设参数"
+    },
+    "communications": {
+      "freq_mhz": 137.0,
+      "bandwidth_khz": 50,
+      "tx_power_dbm": 38,
+      "tx_gain_dbi": 2,
+      "required_snr_db": 9,
+      "data_rate_kbps": 4.8,
+      "modulation": "游戏假设",
+      "note": "游戏假设参数"
+    },
+    "other": {
+      "freq_mhz": 437.0,
+      "bandwidth_khz": 25,
+      "tx_power_dbm": 30,
+      "tx_gain_dbi": 0,
+      "required_snr_db": 10,
+      "data_rate_kbps": 9.6,
+      "modulation": "未知（游戏假设）",
+      "note": "游戏假设参数：无可靠公开参数的卫星使用此默认"
+    }
+  },
+  "known_satellites": {
+    "25544": {"freq_mhz": 145.8, "bandwidth_khz": 30, "tx_power_dbm": 35, "tx_gain_dbi": 2, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "FM", "source": "公开资料（ISS FM 中继）"},
+    "48274": {"freq_mhz": 145.8, "bandwidth_khz": 30, "tx_power_dbm": 35, "tx_gain_dbi": 2, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "FM", "source": "公开资料（天宫 FM）"},
+    "28654": {"freq_mhz": 137.62, "bandwidth_khz": 50, "tx_power_dbm": 39, "tx_gain_dbi": 2, "required_snr_db": 9, "data_rate_kbps": 1.2, "modulation": "APT", "source": "公开资料（NOAA-19 APT）"},
+    "33591": {"freq_mhz": 137.1, "bandwidth_khz": 50, "tx_power_dbm": 39, "tx_gain_dbi": 2, "required_snr_db": 9, "data_rate_kbps": 1.2, "modulation": "APT", "source": "公开资料（NOAA-18 APT）"},
+    "28654x": {"note": "NOAA-15 = 28654"},
+    "25338": {"freq_mhz": 137.62, "bandwidth_khz": 50, "tx_power_dbm": 39, "tx_gain_dbi": 2, "required_snr_db": 9, "data_rate_kbps": 1.2, "modulation": "APT", "source": "公开资料（NOAA-15 APT）"},
+    "25994": {"freq_mhz": 137.62, "bandwidth_khz": 50, "tx_power_dbm": 39, "tx_gain_dbi": 2, "required_snr_db": 9, "data_rate_kbps": 1.2, "modulation": "APT", "source": "公开资料（NOAA-17 存档）"},
+    "40069": {"freq_mhz": 137.1, "bandwidth_khz": 70, "tx_power_dbm": 40, "tx_gain_dbi": 2, "required_snr_db": 10, "data_rate_kbps": 72, "modulation": "LRPT", "source": "公开资料（Meteor-M2 LRPT）"},
+    "44387": {"freq_mhz": 137.9, "bandwidth_khz": 70, "tx_power_dbm": 40, "tx_gain_dbi": 2, "required_snr_db": 10, "data_rate_kbps": 80, "modulation": "LRPT", "source": "公开资料（Meteor-M2-2）"},
+    "42780": {"freq_mhz": 437.0, "bandwidth_khz": 20, "tx_power_dbm": 30, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "GMSK", "source": "公开资料（LightSail-2 遥测）"},
+    "20580": {"freq_mhz": 145.825, "bandwidth_khz": 10, "tx_power_dbm": 28, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 1.2, "modulation": "AFSK", "source": "公开资料（UO-11 遥测，经典老星）"},
+    "42761": {"freq_mhz": 435.07, "bandwidth_khz": 20, "tx_power_dbm": 30, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "GMSK", "source": "公开资料（CAS-4A 转发器）"},
+    "42762": {"freq_mhz": 145.915, "bandwidth_khz": 20, "tx_power_dbm": 30, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "GMSK", "source": "公开资料（CAS-4B 转发器）"},
+    "39444": {"freq_mhz": 145.935, "bandwidth_khz": 10, "tx_power_dbm": 28, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 1.2, "modulation": "BPSK", "source": "公开资料（FUNcube-1 遥测）"},
+    "40909": {"freq_mhz": 435.27, "bandwidth_khz": 20, "tx_power_dbm": 30, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "GMSK", "source": "公开资料（XW-2F 遥测）"},
+    "44876": {"freq_mhz": 2400.0, "bandwidth_khz": 200, "tx_power_dbm": 33, "tx_gain_dbi": 4, "required_snr_db": 10, "data_rate_kbps": 100, "modulation": "BPSK", "source": "公开资料（QO-100 / Es'hail-2 窄带转发器，S 波段）"},
+    "37849": {"freq_mhz": 137.1, "bandwidth_khz": 50, "tx_power_dbm": 39, "tx_gain_dbi": 2, "required_snr_db": 9, "data_rate_kbps": 1.2, "modulation": "APT", "source": "公开资料（NOAA-16 存档参考）"},
+    "39086": {"freq_mhz": 437.0, "bandwidth_khz": 30, "tx_power_dbm": 31, "tx_gain_dbi": 0, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "BPSK", "source": "游戏假设（科学实验卫星参考）"},
+    "48275": {"freq_mhz": 145.8, "bandwidth_khz": 30, "tx_power_dbm": 35, "tx_gain_dbi": 2, "required_snr_db": 10, "data_rate_kbps": 9.6, "modulation": "FM", "source": "公开资料（天宫伴随舱段参考）"}
+  },
+  "atmospheric_loss_db_by_elevation": [
+    {"el": 0, "loss": 5.0},
+    {"el": 5, "loss": 2.5},
+    {"el": 10, "loss": 1.5},
+    {"el": 30, "loss": 0.8},
+    {"el": 90, "loss": 0.5}
+  ]
+}

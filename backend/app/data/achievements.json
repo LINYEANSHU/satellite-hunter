@@ -1,0 +1,374 @@
+{
+  "achievements": [
+    {
+      "id": "first_contact",
+      "name": "First Contact",
+      "desc": "完成第一次观测任务",
+      "icon": "📡",
+      "condition": {
+        "type": "missions_completed",
+        "count": 1
+      }
+    },
+    {
+      "id": "night_watch",
+      "name": "Night Watch",
+      "desc": "在夜间（太阳高度 < -6°）完成一次模拟地面站任务",
+      "icon": "🌙",
+      "condition": {
+        "type": "night_missions",
+        "count": 1
+      }
+    },
+    {
+      "id": "signal_hunter",
+      "name": "Signal Hunter",
+      "desc": "完成十次信号接收任务",
+      "icon": "📶",
+      "condition": {
+        "type": "missions_completed",
+        "count": 10,
+        "mission_type": "capture"
+      }
+    },
+    {
+      "id": "signal_legend",
+      "name": "Signal Legend",
+      "desc": "完成五十次信号接收任务",
+      "icon": "🔮",
+      "condition": {
+        "type": "missions_completed",
+        "count": 50,
+        "mission_type": "capture"
+      }
+    },
+    {
+      "id": "orbital_collector",
+      "name": "Orbital Collector",
+      "desc": "发现一百颗卫星",
+      "icon": "🛰",
+      "condition": {
+        "type": "discovered",
+        "count": 100
+      }
+    },
+    {
+      "id": "catalog_starter",
+      "name": "Catalog Starter",
+      "desc": "发现十颗卫星",
+      "icon": "📔",
+      "condition": {
+        "type": "discovered",
+        "count": 10
+      }
+    },
+    {
+      "id": "ground_station_engineer",
+      "name": "Ground Station Engineer",
+      "desc": "完成第一次设备购买并安装",
+      "icon": "🔧",
+      "condition": {
+        "type": "equipment_installed",
+        "count": 1
+      }
+    },
+    {
+      "id": "network_operator",
+      "name": "Network Operator",
+      "desc": "建立三座虚拟地面站",
+      "icon": "🌐",
+      "condition": {
+        "type": "stations",
+        "count": 3
+      }
+    },
+    {
+      "id": "station_tycoon",
+      "name": "Station Tycoon",
+      "desc": "拥有五座地面站",
+      "icon": "🏗",
+      "condition": {
+        "type": "stations",
+        "count": 5
+      }
+    },
+    {
+      "id": "mission_controller",
+      "name": "Mission Controller",
+      "desc": "成功执行三次自动化调度任务",
+      "icon": "🤖",
+      "condition": {
+        "type": "auto_completed",
+        "count": 3
+      }
+    },
+    {
+      "id": "high_flyer",
+      "name": "High Flyer",
+      "desc": "完成一次最高仰角超过 60° 的任务",
+      "icon": "🚀",
+      "condition": {
+        "type": "max_el_gt",
+        "el": 60,
+        "count": 1
+      }
+    },
+    {
+      "id": "polar_pass",
+      "name": "Polar Pass",
+      "desc": "接收一颗极轨卫星（倾角 > 80°）",
+      "icon": "🧭",
+      "condition": {
+        "type": "inclination_gt",
+        "incl": 80,
+        "count": 1
+      }
+    },
+    {
+      "id": "geo_watcher",
+      "name": "Geo Watcher",
+      "desc": "接收一颗地球静止轨道卫星",
+      "icon": "🛸",
+      "condition": {
+        "type": "category_missions",
+        "category": "geo",
+        "count": 1
+      }
+    },
+    {
+      "id": "weatherman",
+      "name": "Weatherman",
+      "desc": "完成五次气象卫星接收",
+      "icon": "🌦",
+      "condition": {
+        "type": "category_missions",
+        "category": "weather",
+        "count": 5
+      }
+    },
+    {
+      "id": "ham_radio",
+      "name": "Ham Radio Friend",
+      "desc": "接收五颗业余无线电卫星",
+      "icon": "📻",
+      "condition": {
+        "type": "category_missions",
+        "category": "amateur",
+        "count": 5
+      }
+    },
+    {
+      "id": "iss_handshake",
+      "name": "ISS Handshake",
+      "desc": "成功接收国际空间站的信号",
+      "icon": "🤝",
+      "condition": {
+        "type": "satellite_mission",
+        "satellite_id": 25544,
+        "count": 1
+      }
+    },
+    {
+      "id": "data_hoarder",
+      "name": "Data Hoarder",
+      "desc": "累计采集 100 MB 卫星数据",
+      "icon": "💾",
+      "condition": {
+        "type": "data_mb",
+        "mb": 100
+      }
+    },
+    {
+      "id": "tycoon_rich",
+      "name": "Funded Operator",
+      "desc": "累计持有 50,000 Credits",
+      "icon": "💰",
+      "condition": {
+        "type": "credits_total",
+        "amount": 50000
+      }
+    },
+    {
+      "id": "researcher",
+      "name": "Researcher",
+      "desc": "累计获得 1000 研究点数",
+      "icon": "🔬",
+      "condition": {
+        "type": "rp_total",
+        "amount": 1000
+      }
+    },
+    {
+      "id": "fully_equipped",
+      "name": "Fully Equipped",
+      "desc": "单站装备全部 7 类设备（非初始型号）",
+      "icon": "🧰",
+      "condition": {
+        "type": "full_station",
+        "count": 1
+      }
+    },
+    {
+      "id": "pointing_master",
+      "name": "Pointing Master",
+      "desc": "使用转台完成 10 次定向任务",
+      "icon": "🎯",
+      "condition": {
+        "type": "rotator_missions",
+        "count": 10
+      }
+    },
+    {
+      "id": "clean_sweep",
+      "name": "Clean Sweep",
+      "desc": "同一地面站连续 10 次任务成功",
+      "icon": "✨",
+      "condition": {
+        "type": "success_streak",
+        "count": 10
+      }
+    },
+    {
+      "id": "global_reach",
+      "name": "Global Reach",
+      "desc": "在 3 个大洲拥有地面站",
+      "icon": "🗺",
+      "condition": {
+        "type": "continents",
+        "count": 3
+      }
+    },
+    {
+      "id": "favorite_5",
+      "name": "Star Gazer",
+      "desc": "收藏 5 颗卫星",
+      "icon": "⭐",
+      "condition": {
+        "type": "favorites",
+        "count": 5
+      }
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran Operator",
+      "desc": "等级达到 5 级",
+      "icon": "🎖",
+      "condition": {
+        "type": "level",
+        "level": 5
+      }
+    },
+    {
+      "id": "legend",
+      "name": "Living Legend",
+      "desc": "等级达到 10 级",
+      "icon": "👑",
+      "condition": {
+        "type": "level",
+        "level": 10
+      }
+    },
+    {
+      "id": "speed_demon",
+      "name": "Speed Demon",
+      "desc": "完成 20 次卫星追踪任务",
+      "icon": "⚡",
+      "condition": {
+        "type": "missions_completed",
+        "count": 20,
+        "mission_type": "track"
+      }
+    },
+    {
+      "id": "planner",
+      "name": "Grand Planner",
+      "desc": "创建 10 个计划任务",
+      "icon": "📅",
+      "condition": {
+        "type": "missions_created",
+        "count": 10
+      }
+    },
+    {
+      "id": "explorer_all",
+      "name": "Full Spectrum Explorer",
+      "desc": "发现全部 6 个类别的卫星",
+      "icon": "🌈",
+      "condition": {
+        "type": "categories",
+        "count": 6
+      }
+    },
+    {
+      "id": "marathon",
+      "name": "Marathon Day",
+      "desc": "单个游戏日内完成 5 次任务",
+      "icon": "🏃",
+      "condition": {
+        "type": "missions_in_day",
+        "count": 5
+      }
+    },
+    {
+      "id": "deep_space",
+      "name": "Deep Space Ear",
+      "desc": "完成一次 S 波段任务",
+      "icon": "🎹",
+      "condition": {
+        "type": "band_missions",
+        "band": "s",
+        "count": 1
+      }
+    },
+    {
+      "id": "archivist",
+      "name": "Archivist",
+      "desc": "保存 10 件数据收藏",
+      "icon": "🗃",
+      "condition": {
+        "type": "collection_items",
+        "count": 10
+      }
+    },
+    {
+      "id": "first_decode",
+      "name": "Signal Decoded",
+      "desc": "首次收藏一次 SatDump 解码产出（信号实验室/解码任务）",
+      "icon": "🛰️",
+      "condition": {
+        "type": "decoded_outputs",
+        "count": 1
+      }
+    },
+    {
+      "id": "data_titan",
+      "name": "Data Titan",
+      "desc": "累计采集 1000 MB 卫星数据",
+      "icon": "💽",
+      "condition": {
+        "type": "data_mb",
+        "mb": 1000
+      }
+    },
+    {
+      "id": "streak_20",
+      "name": "Unstoppable",
+      "desc": "连续 20 次任务成功",
+      "icon": "🔥",
+      "condition": {
+        "type": "success_streak",
+        "count": 20
+      }
+    },
+    {
+      "id": "centurion",
+      "name": "Centurion",
+      "desc": "累计完成 100 次观测任务",
+      "icon": "🏅",
+      "condition": {
+        "type": "missions_completed",
+        "count": 100
+      }
+    }
+  ]
+}
