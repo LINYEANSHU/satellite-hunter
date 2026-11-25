@@ -29,22 +29,25 @@ const initial: GameSession = {
   satellitesDiscovered: 0,
 }
 
-export const useGameStore = create<GameStore>((set) => ({
+export const useGameStore = create<GameStore>((set, get) => ({
   ...initial,
   // 恢复上次活跃存档（页面刷新后保持上下文；数值仍以服务器为准）
   ...(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('sh-save') || 'null')
-      if (saved?.saveId) return saved
+      if (typeof saved?.saveId === 'string' && saved.saveId) {
+        return { saveId: saved.saveId, saveName: typeof saved.saveName === 'string' ? saved.saveName : null }
+      }
     } catch {
       /* ignore */
     }
     return {}
   })(),
   setSession: (s) => {
+    const previous = get()
     set(s)
-    const st = useGameStore.getState()
-    if (st.saveId) {
+    const st = get()
+    if (st.saveId && (st.saveId !== previous.saveId || st.saveName !== previous.saveName)) {
       try {
         localStorage.setItem(
           'sh-save',
@@ -86,9 +89,11 @@ interface TimeStore {
   resetToReal: () => void
 }
 
+const initialTime = Date.now()
+
 export const useTimeStore = create<TimeStore>((set, get) => ({
-  anchorReal: Date.now(),
-  anchorSim: Date.now(),
+  anchorReal: initialTime,
+  anchorSim: initialTime,
   paused: false,
   scale: 1,
   now: () => {
@@ -100,5 +105,38 @@ export const useTimeStore = create<TimeStore>((set, get) => ({
   setScale: (s) =>
     set((st) => (s === st.scale ? st : { anchorSim: st.now(), anchorReal: Date.now(), scale: s, paused: false })),
   jumpTo: (ms) => set({ anchorSim: ms, anchorReal: Date.now() }),
-  resetToReal: () => set({ anchorSim: Date.now(), anchorReal: Date.now(), scale: 1, paused: false }),
+  resetToReal: () => {
+    const now = Date.now()
+    set({ anchorSim: now, anchorReal: now, scale: 1, paused: false })
+  },
 }))
+
+const CLOCK_PREFIX = 'sh-clock:'
+
+export function checkpointClock(saveId: string) {
+  const { anchorReal, anchorSim, paused, scale, now } = useTimeStore.getState()
+  const key = CLOCK_PREFIX + saveId
+  try {
+    if (!paused && scale === 1 && anchorReal === anchorSim) {
+      localStorage.removeItem(key)
+    } else {
+      localStorage.setItem(key, JSON.stringify({ time: now(), paused, scale }))
+    }
+  } catch {
+    // The backend save still works when browser storage is unavailable.
+  }
+}
+
+export function restoreClock(saveId: string) {
+  try {
+    const clock = JSON.parse(localStorage.getItem(CLOCK_PREFIX + saveId) ?? 'null')
+    if (clock && typeof clock.paused === 'boolean' && Number.isFinite(clock.time)
+      && Math.abs(clock.time) <= 8.64e15 && Number.isFinite(clock.scale) && clock.scale >= 1 && clock.scale <= 1000) {
+      useTimeStore.setState({ anchorReal: Date.now(), anchorSim: clock.time, paused: clock.paused, scale: clock.scale })
+      return
+    }
+  } catch {
+    // Corrupt or inaccessible clock settings fall back to real time.
+  }
+  useTimeStore.getState().resetToReal()
+}

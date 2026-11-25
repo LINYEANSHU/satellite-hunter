@@ -142,8 +142,10 @@ def predict_passes(
     min_elevation_deg: float = 5.0,
     coarse_step_s: float = 30.0,
     max_passes: int = 50,
+    *,
+    peak_elevation_range: tuple[float, float] | None = None,
 ) -> list[Pass]:
-    """预测 [start, end] 内的可见过境。start/end 为 naive UTC。"""
+    """预测 [start, end] 内的可见过境。按峰值筛选时只考虑完整过境。"""
     if end <= start:
         return []
     station_ecef = tf.geodetic_to_ecef(station_lat, station_lon, station_alt_km)
@@ -156,7 +158,7 @@ def predict_passes(
 
     passes: list[Pass] = []
     inside = el[0] >= min_elevation_deg
-    seg_start = float(times[0]) if inside else None
+    seg_start = float(times[0]) if inside and peak_elevation_range is None else None
 
     for k in range(1, len(times)):
         was, now = el[k - 1] >= min_elevation_deg, el[k] >= min_elevation_deg
@@ -164,11 +166,14 @@ def predict_passes(
             seg_start = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu, rising=True)
         elif was and not now and seg_start is not None:
             seg_end = _bisect_cross(sat, station_ecef, jd0, fr0, times[k - 1], times[k], min_elevation_deg, enu=enu, rising=False)
-            _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, seg_end, min_elevation_deg, enu=enu)
+            _emit(
+                passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, seg_end,
+                min_elevation_deg, enu=enu, peak_elevation_range=peak_elevation_range,
+            )
             seg_start = None
             if len(passes) >= max_passes:
                 break
-        elif was and now and k == len(times) - 1 and seg_start is not None:
+        elif was and now and k == len(times) - 1 and seg_start is not None and peak_elevation_range is None:
             # 窗口结束仍在视野内：以最后采样为界
             _emit(passes, sat, satellite_id, station_ecef, jd0, fr0, start, seg_start, float(times[k]), min_elevation_deg, enu=enu)
 
@@ -178,12 +183,14 @@ def predict_passes(
 def _emit(
     passes, sat, satellite_id, station_ecef, jd0, fr0, start_dt, t_aos_s, t_los_s, min_el,
     enu: np.ndarray | None = None,
+    peak_elevation_range: tuple[float, float] | None = None,
 ):
     if t_los_s - t_aos_s < 10.0:  # 过短（低于 10 秒）不作为有效过境
         return
-    el_aos, az_aos = _elevation_series(sat, station_ecef, np.array([t_aos_s]), jd0, fr0, enu=enu)
-    el_los, az_los = _elevation_series(sat, station_ecef, np.array([t_los_s]), jd0, fr0, enu=enu)
     t_tca_s, max_el, az_tca = _max_elevation(sat, station_ecef, jd0, fr0, t_aos_s, t_los_s, enu=enu)
+    if peak_elevation_range is not None and not peak_elevation_range[0] <= max_el <= peak_elevation_range[1]:
+        return
+    _, edges_az = _elevation_series(sat, station_ecef, np.array([t_aos_s, t_los_s]), jd0, fr0, enu=enu)
 
     passes.append(
         Pass(
@@ -192,8 +199,8 @@ def _emit(
             los=start_dt + timedelta(seconds=t_los_s),
             tca=start_dt + timedelta(seconds=t_tca_s),
             max_elevation_deg=max_el,
-            aos_azimuth_deg=float(az_aos[0]),
-            los_azimuth_deg=float(az_los[0]),
+            aos_azimuth_deg=float(edges_az[0]),
+            los_azimuth_deg=float(edges_az[1]),
             tca_azimuth_deg=az_tca,
             duration_s=t_los_s - t_aos_s,
             min_elevation_deg=min_el,

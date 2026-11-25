@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { useTimeStore } from './gameStore'
+import { describe, expect, it, vi } from 'vitest'
+import { checkpointClock, restoreClock, useTimeStore } from './gameStore'
 
 describe('timeStore（锚点推导式时钟）', () => {
   it('默认与现实时间同步、1×、未暂停', () => {
@@ -55,5 +55,41 @@ describe('timeStore（锚点推导式时钟）', () => {
     s.jumpTo(target)
     expect(Math.abs(s.now() - target)).toBeLessThan(100)
     s.resetToReal()
+  })
+
+  it('各存档从各自的模拟时间、倍率和暂停状态继续', () => {
+    const start = Date.parse('2027-01-15T12:00:00Z')
+    vi.useFakeTimers({ now: start })
+    try {
+      const s = useTimeStore.getState()
+      s.setScale(60)
+      s.jumpTo(start + 3_600_000)
+      s.setPaused(true)
+      checkpointClock('paused-save')
+
+      s.resetToReal()
+      s.setScale(10)
+      vi.advanceTimersByTime(2000)
+      checkpointClock('running-save')
+      vi.advanceTimersByTime(10000)
+
+      restoreClock('paused-save')
+      expect(useTimeStore.getState()).toMatchObject({ paused: true, scale: 60 })
+      expect(s.now()).toBe(start + 3_600_000)
+
+      restoreClock('running-save')
+      expect(useTimeStore.getState()).toMatchObject({ paused: false, scale: 10 })
+      expect(s.now()).toBe(start + 20_000)
+      vi.advanceTimersByTime(1000)
+      expect(s.now()).toBe(start + 30_000)
+
+      restoreClock('new-save')
+      expect(useTimeStore.getState()).toMatchObject({ paused: false, scale: 1 })
+      expect(s.now()).toBe(Date.now())
+    } finally {
+      localStorage.clear()
+      vi.useRealTimers()
+      useTimeStore.getState().resetToReal()
+    }
   })
 })

@@ -18,6 +18,7 @@ import { useLang, fmt, translateFailure, tr } from '../i18n'
 import { sfx, useMissionSfx } from '../lib/sfxHooks'
 
 const STATUS_KEYS = ['', 'planned', 'active', 'completed', 'failed'] as const
+const SEARCH_GROUPS = ['stations', 'weather', 'amateur', 'science', 'visual', 'geo', 'active'] as const
 
 const STATUS_COLORS: Record<string, string> = {
   planned: 'text-signal border-signal/40',
@@ -459,6 +460,7 @@ function CreateMissionModal({
   onCreated: () => void
 }) {
   const [q, setQ] = useState('')
+  const [group, setGroup] = useState<(typeof SEARCH_GROUPS)[number]>('stations')
   const [results, setResults] = useState<SatelliteItem[]>([])
   const [sat, setSat] = useState<SatelliteItem | null>(null)
   const [stationId, setStationId] = useState(defaultStation ?? stations[0]?.id ?? '')
@@ -468,20 +470,23 @@ function CreateMissionModal({
   const { t } = useLang()
 
   useEffect(() => {
-    if (q.length < 1) {
-      setResults([])
-      return
-    }
+    setResults([])
+    const query = q.trim()
+    if (!query || sat) return
+    let cancelled = false
     const timer = window.setTimeout(async () => {
       try {
-        const r = await orbitApi.list('stations', q, 30, 0)
-        setResults(r.items)
+        const r = await orbitApi.list(group, query, 30, 0)
+        if (!cancelled) setResults(r.items)
       } catch {
-        setResults([])
+        // Leave the search editable when the catalog is unavailable.
       }
     }, 300)
-    return () => window.clearTimeout(timer)
-  }, [q])
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [group, q, sat])
 
   const submit = async () => {
     if (!sat || !stationId) return
@@ -499,8 +504,9 @@ function CreateMissionModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="create-mission-modal">
-      <div className="panel w-[520px] max-w-[92vw] p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-ink">{t.missions.modal.title}</h3>
+      <div className="panel w-[520px] max-w-[92vw] p-4 space-y-3" role="dialog" aria-modal="true" aria-labelledby="mission-dialog-title"
+        onKeyDown={(e) => { if (e.key === 'Escape' && !busy) onClose() }}>
+        <h3 id="mission-dialog-title" className="text-sm font-semibold text-ink">{t.missions.modal.title}</h3>
 
         <div>
           <label className="text-xs text-ink-dim">{t.missions.modal.target}</label>
@@ -515,7 +521,14 @@ function CreateMissionModal({
             </div>
           ) : (
             <>
-              <input className="input mt-1" placeholder={t.missions.modal.searchPh} value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+              <div className="mt-1 grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <input className="input" aria-label={t.missions.modal.searchPh} placeholder={t.missions.modal.searchPh}
+                  value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+                <select className="input" aria-label={t.missions.modal.catalogGroup} value={group}
+                  onChange={(e) => setGroup(e.target.value as (typeof SEARCH_GROUPS)[number])}>
+                  {SEARCH_GROUPS.map((key) => <option key={key} value={key}>{t.groups[key]}</option>)}
+                </select>
+              </div>
               <div className="mt-1 max-h-44 overflow-y-auto space-y-0.5">
                 {results.map((s) => (
                   <button
@@ -560,15 +573,17 @@ function CreateMissionModal({
           </label>
         </div>
 
-        {err && <div className="text-xs text-danger">{err}</div>}
+        {err && <div role="alert" className="text-xs text-danger">{err}</div>}
 
-        <p className="text-[12px] text-ink-dim leading-relaxed">{t.missions.modal.note}</p>
+        <p className="text-[13px] text-ink-dim leading-relaxed">
+          {type === 'low_angle' ? t.missions.modal.lowAngleNote : t.missions.modal.note}
+        </p>
 
         <div className="flex justify-end gap-2">
-          <button className="btn" onClick={onClose}>
+          <button className="btn" disabled={busy} onClick={onClose}>
             {t.common.cancel}
           </button>
-          <button className="btn btn-primary" disabled={!sat || busy} onClick={() => void submit()} data-testid="mission-submit">
+          <button className="btn btn-primary" disabled={!sat || !stationId || busy} onClick={() => void submit()} data-testid="mission-submit">
             {busy ? t.missions.modal.planning : t.missions.modal.submit}
           </button>
         </div>

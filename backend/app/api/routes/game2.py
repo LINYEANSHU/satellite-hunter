@@ -1,8 +1,6 @@
 """Phase 2 游戏 API：设备、任务、图鉴、成就、存档。"""
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -10,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.core.timeparse import parse_utc_at
 from app.db import get_db
-from app.db.models import CollectionEntry, CollectionItem, Equipment, Mission, PlayerState, Save, Station
+from app.db.models import CollectionEntry, CollectionItem, Equipment, Mission, PlayerState, Save, Station, utcnow
 from app.services.game import achievements as ach_service
 from app.services.game import equipment as eq_service
 from app.services.game import missions as mission_service
@@ -35,7 +33,7 @@ def list_saves(db: Session = Depends(get_db)) -> list[dict]:
             {
                 "id": s.id,
                 "name": s.name,
-                "last_played_at": s.last_played_at.isoformat() if s.last_played_at else None,
+                "last_played_at": s.last_played_at.isoformat() + "Z" if s.last_played_at else None,
                 "credits": p.credits if p else 0,
                 "research_points": p.research_points if p else 0,
                 "level": p.level if p else 1,
@@ -71,25 +69,39 @@ def delete_save(save_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.get("/game/state")
 def game_state(save_id: str, db: Session = Depends(get_db)) -> dict:
-    """完整会话状态（进入存档时加载）。"""
+    """读取会话，不更新最后游玩时间。"""
     s = db.get(Save, save_id)
     if s is None:
         raise AppError(404, "SAVE_NOT_FOUND", "存档不存在")
-    s.last_played_at = datetime.utcnow()
-    db.commit()
+    return _save_snapshot(db, s, db.get(PlayerState, save_id))
+
+
+@router.post("/saves/{save_id}/resume")
+def resume_save(save_id: str, db: Session = Depends(get_db)) -> dict:
+    s = db.get(Save, save_id)
+    if s is None:
+        raise AppError(404, "SAVE_NOT_FOUND", "存档不存在")
     p = db.get(PlayerState, save_id)
-    stations = db.query(Station).filter(Station.save_id == save_id).all()
+    if p is None:
+        p = PlayerState(save_id=save_id)
+        db.add(p)
+    s.last_played_at = utcnow()
+    db.commit()
+    return _save_snapshot(db, s, p)
+
+
+def _save_snapshot(db: Session, s: Save, p: PlayerState | None) -> dict:
     return {
         "save": {"id": s.id, "name": s.name, "created_at": s.created_at.isoformat()},
         "player": {
-            "credits": p.credits,
-            "research_points": p.research_points,
-            "xp": p.xp,
-            "level": p.level,
-            "total_missions_done": p.total_missions_done,
-            "satellites_discovered": p.satellites_discovered,
+            "credits": p.credits if p else 0,
+            "research_points": p.research_points if p else 0,
+            "xp": p.xp if p else 0,
+            "level": p.level if p else 1,
+            "total_missions_done": p.total_missions_done if p else 0,
+            "satellites_discovered": p.satellites_discovered if p else 0,
         },
-        "stations_count": len(stations),
+        "stations_count": db.query(Station.id).filter(Station.save_id == s.id).count(),
     }
 
 

@@ -78,6 +78,26 @@ def test_min_elevation_filter(iss_sat):
     assert len(high) <= len(low)
 
 
+def test_peak_range_finds_next_complete_matching_pass(iss_sat):
+    end = START + timedelta(hours=72)
+    all_passes = passes_mod.predict_passes(iss_sat, 25544, *BEIJING, START, end)
+    matching = [p for p in all_passes if 8 <= p.max_elevation_deg <= 18]
+    assert len(matching) >= 2
+
+    first = passes_mod.predict_passes(
+        iss_sat, 25544, *BEIJING, START, end, max_passes=1, peak_elevation_range=(8, 18)
+    )
+    assert first == matching[:1]
+
+    # Starting after AOS must not qualify the remainder of an in-progress pass.
+    remaining = passes_mod.predict_passes(
+        iss_sat, 25544, *BEIJING, matching[0].tca, end,
+        max_passes=1, peak_elevation_range=(8, 18),
+    )
+    assert len(remaining) == 1
+    assert abs((remaining[0].aos - matching[1].aos).total_seconds()) <= 1
+
+
 def test_propagator_positions(iss_sat):
     from app.services.orbit.omm import SatEntry
 

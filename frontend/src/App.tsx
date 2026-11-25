@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { NavLink, Outlet, Route, Routes } from 'react-router-dom'
 import { api, type Capabilities } from './api/client'
-import { useGameStore, useTimeStore } from './stores/gameStore'
+import { gameApi } from './api/game'
+import { checkpointClock, restoreClock, useGameStore, useTimeStore } from './stores/gameStore'
 import TimeBar from './components/TimeBar'
 import GameNotifications, { TutorialOverlay } from './components/GameNotifications'
 import PassReminder from './components/PassReminder'
@@ -62,6 +63,21 @@ function Shell() {
 
   // 刷新存档后从服务器同步一次资源显示（localStorage 只恢复上下文不恢复数值）
   const saveId = useGameStore((s) => s.saveId)
+  useLayoutEffect(() => {
+    if (!saveId) {
+      useTimeStore.getState().resetToReal()
+      return
+    }
+    restoreClock(saveId)
+    const checkpoint = () => checkpointClock(saveId)
+    const unsubscribe = useTimeStore.subscribe(checkpoint)
+    window.addEventListener('pagehide', checkpoint)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('pagehide', checkpoint)
+      checkpoint()
+    }
+  }, [saveId])
   useEffect(() => {
     api
       .capabilities()
@@ -70,21 +86,19 @@ function Shell() {
   }, [])
   useEffect(() => {
     if (!saveId) return
-    import('./api/game').then(({ gameApi }) =>
-      gameApi
-        .state(saveId)
-        .then((st) =>
-          useGameStore.getState().setSession({
-            credits: st.player.credits,
-            researchPoints: st.player.research_points,
-            xp: st.player.xp,
-            level: st.player.level,
-            totalMissionsDone: st.player.total_missions_done,
-            satellitesDiscovered: st.player.satellites_discovered,
-          }),
-        )
-        .catch(() => {}),
-    )
+    let cancelled = false
+    gameApi.state(saveId).then((st) => {
+      if (cancelled || useGameStore.getState().saveId !== saveId) return
+      useGameStore.getState().setSession({
+        credits: st.player.credits,
+        researchPoints: st.player.research_points,
+        xp: st.player.xp,
+        level: st.player.level,
+        totalMissionsDone: st.player.total_missions_done,
+        satellitesDiscovered: st.player.satellites_discovered,
+      })
+    }).catch(() => {})
+    return () => { cancelled = true }
   }, [saveId])
 
   return (

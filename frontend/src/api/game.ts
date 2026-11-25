@@ -121,6 +121,7 @@ export const gameApi = {
   createSave: (name: string) =>
     request<{ id: string; name: string }>('/api/saves', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteSave: (id: string) => request<{ deleted: string }>(`/api/saves/${id}`, { method: 'DELETE' }),
+  resumeSave: (id: string) => request<GameState>(`/api/saves/${id}/resume`, { method: 'POST' }),
   state: (saveId: string) => request<GameState>(`/api/game/state?save_id=${saveId}`),
 
   catalog: () => request<{ categories: CatalogCategory[]; meta: Record<string, unknown> }>('/api/equipment/catalog'),
@@ -338,6 +339,7 @@ export const MISSION_TYPE_LABELS: Record<string, string> = {
   track: '卫星追踪',
   plan: '过境规划',
   capture: '信号捕获',
+  low_angle: '低仰角接收',
   decode: '真实解码',
   auto: '自动任务',
   collection: '收藏发现',

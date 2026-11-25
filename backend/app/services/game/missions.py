@@ -30,11 +30,13 @@ REWARDS = {
     "track": {"credits": 200, "rp": 8, "xp": 30},
     "plan": {"credits": 250, "rp": 10, "xp": 30},
     "capture": {"credits": 350, "rp": 15, "xp": 50},
+    "low_angle": {"credits": 500, "rp": 24, "xp": 70},
     "auto": {"credits": 280, "rp": 12, "xp": 40},
     "collection": {"credits": 120, "rp": 6, "xp": 20},
 }
 
 MISSION_TYPES = list(REWARDS.keys())
+LOW_ANGLE_PEAK_RANGE = (8.0, 18.0)
 
 # 仿真采样：任务积分步长（秒）
 _INTEGRATION_STEP_S = 20.0
@@ -80,12 +82,12 @@ def _station_propagator(satellite_id: int) -> Propagator:
     return Propagator([entry])
 
 
-def _next_pass(satellite_id: int, station, start: datetime, min_el: float):
-    prop = _station_propagator(satellite_id)
-    sat = prop.get_satrec(satellite_id)
+def _next_pass(entry, station, start: datetime, peak_range=None):
+    sat = Propagator([entry]).get_satrec(entry.norad_id)
     ps = passes_mod.predict_passes(
-        sat, satellite_id, station.lat, station.lon, station.alt_m / 1000.0,
-        start, start + timedelta(hours=72), max(min_el, 5.0), max_passes=5,
+        sat, entry.norad_id, station.lat, station.lon, station.alt_m / 1000.0,
+        start, start + timedelta(hours=72), max(station.min_elevation_deg, 5.0),
+        max_passes=1, peak_elevation_range=peak_range,
     )
     return ps[0] if ps else None
 
@@ -103,6 +105,9 @@ def create_mission(
     """创建任务。校验：类型、设备频段覆盖、可见性、站内冲突、计算机并发。"""
     if mission_type not in MISSION_TYPES:
         raise AppError(400, "BAD_TYPE", f"未知任务类型: {mission_type}")
+    peak_range = LOW_ANGLE_PEAK_RANGE if mission_type == "low_angle" else None
+    if peak_range is not None and at is not None:
+        raise AppError(422, "LOW_ANGLE_AUTO_REQUIRED", "低仰角任务需要完整的预测过境")
     station = db.get(Station, station_id)
     if station is None or station.save_id != save_id:
         raise AppError(404, "STATION_NOT_FOUND", "地面站不存在")
@@ -144,8 +149,10 @@ def create_mission(
         aos, los = at, at + timedelta(seconds=300)
         max_el = la.elevation_deg
     else:
-        ps = _next_pass(satellite_id, station, now, station.min_elevation_deg)
+        ps = _next_pass(entry, station, now, peak_range)
         if ps is None:
+            if peak_range is not None:
+                raise AppError(422, "NO_LOW_ANGLE_PASS", "72 小时内无符合条件的低仰角过境")
             raise AppError(422, "NO_PASS", "72 小时内无可用过境")
         aos, los, max_el = ps.aos, ps.los, ps.max_elevation_deg
 

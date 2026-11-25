@@ -15,50 +15,82 @@ export default function MainMenuPage() {
   const [saves, setSaves] = useState<SaveInfo[]>([])
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [savesStatus, setSavesStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
   const [backendDown, setBackendDown] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const setSession = useGameStore((s) => s.setSession)
   const { t } = useLang()
+  const busy = creating || pendingId !== null
+  const recent = saves[0]
 
-  const refresh = useCallback(() => {
-    api.capabilities().then((value) => { setCaps(value); setBackendDown(false) }).catch((e) => { setBackendDown(true); setError(e.message) })
-    gameApi.saves().then(setSaves).catch((e) => setError(e.message))
+  const refreshSaves = useCallback(async () => {
+    setSavesStatus('loading')
+    try {
+      setSaves(await gameApi.saves())
+      setSavesStatus('ready')
+    } catch (e) {
+      setSavesStatus('failed')
+      setError(tr(e))
+    }
   }, [])
 
-  useEffect(refresh, [refresh])
+  useEffect(() => { void refreshSaves() }, [refreshSaves])
+  useEffect(() => {
+    api.capabilities().then(setCaps).catch(() => setBackendDown(true))
+  }, [])
 
-  const enter = (s: SaveInfo) => {
+  const enter = async (id: string) => {
+    const { save, player } = await gameApi.resumeSave(id)
     sfx.click()
     setSession({
-      saveId: s.id,
-      saveName: s.name,
-      credits: s.credits,
-      researchPoints: s.research_points,
-      level: s.level,
-      totalMissionsDone: s.total_missions_done,
-      satellitesDiscovered: s.satellites_discovered,
+      saveId: save.id,
+      saveName: save.name,
+      credits: player.credits,
+      researchPoints: player.research_points,
+      xp: player.xp,
+      level: player.level,
+      totalMissionsDone: player.total_missions_done,
+      satellitesDiscovered: player.satellites_discovered,
     })
     nav('/explorer')
   }
 
+  const open = async (id: string) => {
+    if (busy) return
+    setPendingId(id)
+    setError(null)
+    try {
+      await enter(id)
+    } catch (e) {
+      setError(tr(e))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const explore = () => {
+    const active = useGameStore.getState()
+    if (active.saveId && savesStatus === 'ready') {
+      if (saves.some((s) => s.id === active.saveId)) {
+        void open(active.saveId)
+        return
+      }
+      active.reset()
+    }
+    nav('/explorer')
+  }
+
   const create = async () => {
-    if (!newName.trim() || creating) return
+    if (!newName.trim() || busy) return
     setCreating(true)
     setError(null)
     try {
       const s = await gameApi.createSave(newName.trim())
       setNewName('')
-      refresh()
-      enter({
-        ...s,
-        last_played_at: null,
-        credits: 5000,
-        research_points: 0,
-        level: 1,
-        total_missions_done: 0,
-        satellites_discovered: 0,
-      })
+      await enter(s.id)
     } catch (e) {
+      await refreshSaves()
       setError(tr(e))
     } finally {
       setCreating(false)
@@ -89,7 +121,14 @@ export default function MainMenuPage() {
             {t.menu.body}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4 rise" style={{ animationDelay: '160ms' }}>
-            <button className="btn-solid h-11 px-6 text-[15px]" onClick={() => nav('/explorer')} data-testid="enter-explorer">
+            {recent && (
+              <button className="btn-solid min-h-11 max-w-full px-6 text-[15px] truncate" title={recent.name}
+                disabled={busy || savesStatus !== 'ready'} onClick={() => void open(recent.id)} data-testid="resume-save">
+                {fmt(t.menu.resume, { name: recent.name })}
+              </button>
+            )}
+            <button className={`${recent ? 'btn' : 'btn-solid'} h-11 px-6 text-[15px]`} disabled={busy}
+              onClick={explore} data-testid="enter-explorer">
               {t.menu.enter}
             </button>
             <span className="text-[13px] text-ink-dim">{t.menu.noHardware}</span>
@@ -146,7 +185,11 @@ export default function MainMenuPage() {
               <h2 className="text-[17px] font-semibold text-ink">{t.menu.saves}</h2>
               <span className="text-[13px] text-ink-dim">{fmt(t.menu.savesN, { n: saves.length })}</span>
             </div>
-            {saves.length === 0 && (
+            {savesStatus === 'loading' && <p role="status" className="text-sm text-ink-dim py-3">{t.common.loading}</p>}
+            {savesStatus === 'failed' && (
+              <button className="btn" onClick={() => { setError(null); void refreshSaves() }}>{t.menu.retrySaves}</button>
+            )}
+            {savesStatus === 'ready' && saves.length === 0 && (
               <p className="text-[14px] text-ink-dim py-3">{t.menu.savesEmpty}</p>
             )}
             {saves.map((s, i) => (
@@ -157,7 +200,7 @@ export default function MainMenuPage() {
                 data-testid={`save-${s.name}`}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-[15px] text-ink">{s.name}</div>
+                  <div className="text-[15px] text-ink truncate" title={s.name}>{s.name}</div>
                   <div className="text-[13px] text-ink-dim mt-0.5">
                     <span className="data">Lv.{s.level}</span> ·{' '}
                     <span className="data text-warn">₡{Math.round(s.credits).toLocaleString()}</span> ·{' '}
@@ -167,18 +210,28 @@ export default function MainMenuPage() {
                       ` · ${fmt(t.menu.lastPlayed, { date: new Date(s.last_played_at).toLocaleDateString() })}`}
                   </div>
                 </div>
-                <button className="btn btn-primary h-8 text-[13px]" onClick={() => enter(s)}>
+                <button className="btn btn-primary h-8 text-[13px]" disabled={busy} onClick={() => void open(s.id)}>
                   {t.common.enter}
                 </button>
                 <button
                   className="btn btn-danger w-9 px-0 h-8"
                   title={t.menu.deleteTitle}
+                  aria-label={t.menu.deleteTitle}
+                  disabled={busy}
                   onClick={async () => {
                     if (confirm(fmt(t.menu.deleteConfirm, { name: s.name }))) {
+                      setPendingId(s.id)
+                      setError(null)
                       try {
                         await gameApi.deleteSave(s.id)
-                        refresh()
-                      } catch (e) { setError(tr(e)) }
+                        const active = useGameStore.getState()
+                        if (active.saveId === s.id) active.reset()
+                        await refreshSaves()
+                      } catch (e) {
+                        setError(tr(e))
+                      } finally {
+                        setPendingId(null)
+                      }
                     }
                   }}
                 >
@@ -191,14 +244,14 @@ export default function MainMenuPage() {
                 className="input max-w-xs !h-9"
                 placeholder={t.menu.newSavePh}
                 aria-label={t.menu.newSavePh}
-                maxLength={80}
-                disabled={creating}
+                maxLength={64}
+                disabled={busy}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && void create()}
                 data-testid="new-save-input"
               />
-              <button className="btn !h-9" disabled={creating || !newName.trim()} onClick={() => void create()} data-testid="create-save">
+              <button className="btn !h-9" disabled={busy || !newName.trim()} onClick={() => void create()} data-testid="create-save">
                 <Icon name="plus" size={14} />
                 {creating ? t.common.loading : t.menu.create}
               </button>

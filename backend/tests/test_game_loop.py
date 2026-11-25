@@ -56,6 +56,69 @@ def test_starter_kit_installed(client, save_id, station_id):
     assert {"antenna", "sdr", "rotator", "computer", "storage"} <= cats
 
 
+def test_resume_loads_saved_progress_and_updates_recency(client, save_id, station_id):
+    assert client.post(
+        "/api/equipment/buy", json={"save_id": save_id, "catalog_id": "ant_yagi_vhf"}
+    ).status_code == 200
+    other = client.post("/api/saves", json={"name": "玩家二"}).json()
+
+    before = client.get("/api/saves").json()
+    assert before[0]["id"] == other["id"]
+    assert client.get("/api/game/state", params={"save_id": save_id}).status_code == 200
+    assert client.get("/api/saves").json() == before
+
+    resumed = client.post(f"/api/saves/{save_id}/resume")
+    assert resumed.status_code == 200, resumed.text
+    state = resumed.json()
+    assert state["save"]["id"] == save_id
+    assert state["player"]["credits"] == 4100
+    assert state["stations_count"] == 1
+    assert client.get("/api/saves").json()[0]["id"] == save_id
+    assert client.post("/api/saves/missing/resume").status_code == 404
+
+
+def test_low_angle_capture_is_a_persisted_mission(client, fake_catalog, save_id, station_id, monkeypatch):
+    from app.services.game import missions
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def utcnow(cls):
+            return cls(2026, 10, 10)
+
+    monkeypatch.setattr(missions, "datetime", FixedDateTime)
+    body = {"save_id": save_id, "station_id": station_id, "satellite_id": 25544, "type": "low_angle"}
+    planned = client.post("/api/missions", json=body)
+    assert planned.status_code == 200, planned.text
+    mission = planned.json()
+    assert mission["type"] == "low_angle"
+    assert 8 <= mission["max_elevation_deg"] <= 18
+    assert mission["reward_credits"] > 500
+    assert mission["aos"] < mission["los"]
+    assert client.get(f"/api/missions/{mission['id']}").json() == mission
+
+    custom_time = client.post("/api/missions", json={**body, "at": mission["aos"]})
+    assert custom_time.status_code == 422
+    assert custom_time.json()["error"]["code"] == "LOW_ANGLE_AUTO_REQUIRED"
+
+    for catalog_id in ("ant_yagi_vhf", "lna_basic"):
+        item = client.post("/api/equipment/buy", json={"save_id": save_id, "catalog_id": catalog_id})
+        assert item.status_code == 200, item.text
+        assert client.post(
+            f"/api/equipment/{item.json()['id']}/install",
+            json={"save_id": save_id, "station_id": station_id},
+        ).status_code == 200
+
+    mission_url = f"/api/missions/{mission['id']}"
+    assert client.post(f"{mission_url}/start").status_code == 200
+    after = datetime.fromisoformat(mission["los"]) + timedelta(minutes=1)
+    outcome = client.get(f"{mission_url}/telemetry", params={"at": after.isoformat()}).json()
+    assert outcome["status"] == "completed", outcome["mission"].get("failure_reason")
+    resumed = client.post(f"/api/saves/{save_id}/resume").json()
+    assert resumed["player"]["total_missions_done"] == 1
+    assert resumed["player"]["credits"] > 3400
+    assert resumed["player"]["xp"] == mission["reward_xp"]
+
+
 def test_equipment_buy_install_cycle(client, save_id, station_id):
     # 买八木天线（初始 credits 5000，价格 900）
     r = client.post("/api/equipment/buy", json={"save_id": save_id, "catalog_id": "ant_yagi_vhf"})
