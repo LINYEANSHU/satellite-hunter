@@ -26,6 +26,7 @@ export interface Capabilities {
     cache_dir: string
     cached_groups: string[]
     cache_ttl_hours: number
+    auto_refresh_hours?: number
     configured_groups: string[]
   }
   frontend_built: boolean

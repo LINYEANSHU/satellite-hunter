@@ -52,7 +52,7 @@ def test_unavailable_provider_uses_bundled_cache_and_backs_off_across_restart(mo
     assert service.get_group("stations", force=True).bundled
     assert service.find(25544) is not None
     with pytest.raises(AppError, match="没有本地快照"):
-        service.get_group("weather", force=True)
+        service.get_group("science", force=True)
     assert len(calls) == 1
     assert not (settings.orbit_cache_dir / "stations.json").exists()
     assert service._provider_pause() - time.time() >= 3500

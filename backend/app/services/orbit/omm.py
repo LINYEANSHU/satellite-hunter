@@ -82,6 +82,9 @@ def satrec_from_omm(omm: dict) -> Satrec:
     使用 python-sgp4 官方 omm.initialize（单位换算以库实现为准，
     已由本项目 OMM↔TLE 等价性测试交叉验证）。字段缺失时补默认值。
     """
+    line1, line2 = omm.get("_TLE_LINE1"), omm.get("_TLE_LINE2")
+    if line1 and line2:
+        return satrec_from_tle(line1, line2)
     from sgp4 import omm as sgp4_omm
 
     missing = [k for k in _OMM_REQUIRED if omm.get(k) in (None, "")]
@@ -121,7 +124,7 @@ def parse_celestrak_json(records: list[dict], group: str = "") -> list[SatEntry]
             norad_id=norad,
             name=str(rec.get("OBJECT_NAME", "")).strip(),
             omm=rec,
-            origin="celestrak_omm",
+            origin=str(rec.get("_SH_ORIGIN", "celestrak_omm")),
             groups={group} if group else set(),
             epoch=parse_epoch(str(rec.get("EPOCH", ""))),
         )
@@ -178,9 +181,11 @@ def parse_tle_text(text: str, group: str = "user_imported") -> list[SatEntry]:
             i += 2
             continue
         omm = satrec_to_omm_like(sat)
+        name = name.removeprefix("0 ").strip() or f"NORAD {sat.satnum}"
+        omm.update(OBJECT_NAME=name, _TLE_LINE1=l1, _TLE_LINE2=l2)
         entry = SatEntry(
             norad_id=sat.satnum,
-            name=name or omm["OBJECT_NAME"],
+            name=name,
             omm=omm,
             origin="tle_import",
             groups={group} if group else set(),
@@ -208,7 +213,7 @@ def satrec_to_omm_like(sat: Satrec) -> dict:
     return {
         "NORAD_CAT_ID": str(sat.satnum),
         "OBJECT_NAME": "",
-        "EPOCH": epoch_dt.strftime("%Y-%m-%dT%H:%M:%S.000000Z"),
+        "EPOCH": epoch_dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         "MEAN_MOTION": f"{sat.no_kozai * XPDOTP:.8f}",
         "ECCENTRICITY": f"{sat.ecco:.7f}",
         "INCLINATION": f"{sat.inclo * 180.0 / math.pi:.4f}",

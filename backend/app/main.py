@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from threading import Event, Thread
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -20,6 +21,7 @@ from app.core.errors import (
     validation_error_handler,
 )
 from app.core.logging import get_logger, setup_logging
+from app.services.orbit.catalog import catalog_service, effective_auto_refresh_hours
 
 log = get_logger(__name__)
 
@@ -32,8 +34,16 @@ async def lifespan(app: FastAPI):
 
     init_db()
     log.info("%s v%s 启动完成 | data=%s", settings.app_name, settings.version, settings.data_dir)
-    yield
-    log.info("后端关闭")
+    stop_refresh = Event()
+    interval = effective_auto_refresh_hours() * 3600
+    if interval:
+        Thread(target=catalog_service.run_auto_refresh, args=(stop_refresh, interval),
+               name="orbit-catalog-refresh", daemon=True).start()
+    try:
+        yield
+    finally:
+        stop_refresh.set()
+        log.info("后端关闭")
 
 
 def create_app() -> FastAPI:

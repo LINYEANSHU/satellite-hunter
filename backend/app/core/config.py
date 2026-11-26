@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     # 轨道数据
     celestrak_base: str = "https://celestrak.org/NORAD/elements/gp.php"
     orbit_cache_ttl_hours: float = 2.0  # 同组数据至少间隔 2 小时才重新请求
+    orbit_auto_refresh_hours: float = Field(6.0, ge=0, allow_inf_nan=False)  # 0 disables background updates
     orbit_offline: bool = False
     default_min_elevation_deg: float = 0.0
 

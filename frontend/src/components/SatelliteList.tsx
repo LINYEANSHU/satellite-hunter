@@ -11,6 +11,8 @@ export default function SatelliteList() {
     total,
     stale,
     loading,
+    refreshing,
+    sourceInfo,
     error,
     search,
     selectedId,
@@ -31,7 +33,16 @@ export default function SatelliteList() {
     void loadGroups()
     void loadSatellites()
     startPolling()
-    return () => useCatalogStore.getState().stopPolling()
+    const syncSources = () => {
+      if (!document.hidden) void loadGroups(true)
+    }
+    const statusTimer = window.setInterval(syncSources, 30000)
+    document.addEventListener('visibilitychange', syncSources)
+    return () => {
+      window.clearInterval(statusTimer)
+      document.removeEventListener('visibilitychange', syncSources)
+      useCatalogStore.getState().stopPolling()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -44,6 +55,18 @@ export default function SatelliteList() {
     [groups],
   )
   const meta = groupMeta[currentGroup]
+  const fetchedAt = sourceInfo?.fetched_at ?? meta?.fetched_at
+  const epoch = sourceInfo?.newest_epoch ?? meta?.newest_epoch
+  const source = sourceInfo?.source ?? meta?.source
+  const bundled = sourceInfo?.bundled ?? meta?.bundled
+  const localTimes = useMemo(() => {
+    const clock = new Intl.DateTimeFormat(lang, { dateStyle: 'short', timeStyle: 'short' })
+    const formatTime = (date: Date) => Number.isFinite(date.getTime()) ? clock.format(date) : '—'
+    return {
+      fetched: fetchedAt ? formatTime(new Date(fetchedAt * 1000)) : '—',
+      epoch: epoch ? formatTime(new Date(/Z$|[+-]\d\d:\d\d$/.test(epoch) ? epoch : epoch + 'Z')) : '—',
+    }
+  }, [lang, fetchedAt, epoch])
   const groupLabel = (key: string, fallback: string) =>
     (t.groups as Record<string, string>)[key] ?? fallback
 
@@ -59,20 +82,13 @@ export default function SatelliteList() {
         <span>{t.satList.title}</span>
         <span className="data normal-case tracking-normal">
           {fmt(t.satList.n, { n: total })}{' '}
-          {stale && (
-            <span className="text-warn" title={meta?.error ?? ''}>
-              {t.satList.stale}
+          {(bundled || stale) && (
+            <span className="text-warn" title={meta?.error || sourceInfo?.error || undefined}>
+              · {bundled ? t.satList.bundled : t.satList.cached}
             </span>
           )}
         </span>
       </div>
-      {meta?.bundled && stale && (
-        <div className="px-2 py-1 text-xs text-warn" title={meta.source}>
-          {lang === 'zh' ? '随包历史轨道快照' : 'Bundled historical orbital snapshot'}
-          {meta.newest_epoch && ' · ' + meta.newest_epoch.slice(0, 10)}
-        </div>
-      )}
-
       {/* 分组 */}
       <div className="flex flex-wrap gap-1 p-2 ">
         {groups.map((g) => (
@@ -103,14 +119,15 @@ export default function SatelliteList() {
           onChange={(e) => onSearchChange(e.target.value)}
           data-testid="sat-search"
         />
-        <div className="flex items-center justify-between mt-1.5 text-[13px] text-ink-dim data">
-          <span>
-            {meta
-              ? `${meta.age_hours !== null ? fmt(t.satList.dataAge, { h: meta.age_hours }) : t.satList.notLoaded} · ${fmt(t.satList.epoch, { d: meta.newest_epoch ? meta.newest_epoch.slice(0, 10) : '—' })}`
-              : ''}
-          </span>
-          <button className="hover:text-signal" onClick={() => void refreshGroup()} title={t.satList.refreshTitle}>
-            {t.satList.refresh}
+        <div className="flex items-start justify-between gap-2 mt-2 text-xs text-ink-dim">
+          <div data-testid="catalog-source" className="min-w-0 space-y-0.5">
+            <div className="break-words">{source?.replace(' + local cache', t.satList.plusCache) ?? t.satList.notLoaded}</div>
+            {fetchedAt != null && <div>{fmt(t.satList.fetched, { d: localTimes.fetched })}</div>}
+            {epoch && <div>{fmt(t.satList.epoch, { d: localTimes.epoch })}</div>}
+          </div>
+          <button className="shrink-0 hover:text-signal disabled:opacity-50" onClick={() => void refreshGroup()}
+            title={t.satList.refreshTitle} disabled={refreshing} aria-busy={refreshing}>
+            {refreshing ? t.satList.refreshing : t.satList.refresh}
           </button>
         </div>
       </div>

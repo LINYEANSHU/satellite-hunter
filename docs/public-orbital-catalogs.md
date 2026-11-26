@@ -2,11 +2,15 @@
 
 ## 人造地球卫星
 
-在线目录使用 CelesTrak GP 的 OMM CSV。每个分组以两小时为最短更新周期。遇到服务拒绝、限流或 5xx 时会暂缓请求，并读取上次可用缓存。随包空间站快照包含 20 条记录，采集于 2026-11-01 UTC。界面显示快照和轨道历元，轨道通过原有 SGP4 地球参考系求解。历史历元适用于离线演示，预测误差会随时间增加，实际过境需要近期要素。
+气象和业余无线电目录优先使用 SatNOGS DB 的公开 TLE 与发射机服务分类。气象目录在 SatNOGS 不可用时还会尝试 EUMETSAT 运营方发布的 NOAA、Suomi-NPP 和 Metop 要素。CelesTrak GP CSV 保留为补充源，遵循更新间隔与 Retry-After。
 
-设置 SH_ORBIT_OFFLINE=true 可只使用本地人造卫星要素。太阳系页面的 JPL 补查由用户主动发起。
+随包提供 **52 条气象卫星、154 条业余卫星**的 SatNOGS 快照，另保留原有 20 条空间站快照。SatNOGS 快照许可为 CC BY-SA 4.0，转换与归属见 [数据声明](../backend/app/data/orbit_seed/SATNOGS-DATA.md)。随包快照与用户后续获取的缓存分开存放。EUMETSAT 要素按需获取到本地。
 
-[CelesTrak GP 格式](https://celestrak.org/NORAD/documentation/gp-data-formats.php) · [CelesTrak 使用政策](https://celestrak.org/usage-policy.php)
+游戏运行时，启动后在后台检查气象与业余目录，默认每 6 小时检查一次。成功取得的要素保存到本地。局部更新会按 NORAD 编号保留历元较新的要素，并保留此次未覆盖的卫星。取得目录失败时可继续读取有效缓存或随包快照。目录显示来源、获取时间和最新轨道历元。
+
+设置 SH_ORBIT_AUTO_REFRESH_HOURS=0 关闭后台检查，设置 SH_ORBIT_OFFLINE=true 只使用本地卫星要素。位置、轨迹和过境都在本机通过 SGP4 计算。预测误差会随时刻与历元相隔时间增加。太阳系页面的 JPL 补查由用户主动发起。
+
+[SatNOGS DB](https://wiki.satnogs.org/DB) · [EUMETSAT TLE](https://service.eumetsat.int/tle/) · [CelesTrak GP 格式](https://celestrak.org/NORAD/documentation/gp-data-formats.php) · [CelesTrak 使用政策](https://celestrak.org/usage-policy.php)
 
 ## 太阳系
 

@@ -14,7 +14,7 @@ import numpy as np
 from sgp4.api import Satrec, SatrecArray
 
 from app.services.orbit import transforms as tf
-from app.services.orbit.omm import SatEntry, satrec_from_omm, satrec_from_tle
+from app.services.orbit.omm import SatEntry, satrec_from_omm
 
 
 @dataclass
@@ -54,12 +54,7 @@ class Propagator:
         for e in entries:
             self.entries[e.norad_id] = e
             try:
-                if e.origin == "tle_import" and e.omm.get("_TLE_LINE1"):
-                    self._satrecs[e.norad_id] = satrec_from_tle(
-                        e.omm["_TLE_LINE1"], e.omm["_TLE_LINE2"]
-                    )
-                else:
-                    self._satrecs[e.norad_id] = satrec_from_omm(e.omm)
+                self._satrecs[e.norad_id] = satrec_from_omm(e.omm)
             except Exception as ex:
                 self._init_errors[e.norad_id] = str(ex)
         self._array = None

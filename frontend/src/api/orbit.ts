@@ -14,6 +14,10 @@ export interface SatelliteListResp {
   label: string
   stale: boolean
   fetched_at: number
+  source?: string
+  bundled?: boolean
+  newest_epoch?: string | null
+  error?: string | null
   total: number
   items: SatelliteItem[]
 }

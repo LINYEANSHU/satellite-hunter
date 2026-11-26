@@ -12,6 +12,7 @@ import time
 from fastapi import APIRouter
 
 from app.core.config import settings
+from app.services.orbit.catalog import effective_auto_refresh_hours
 from app.core.logging import get_logger
 
 router = APIRouter(tags=["system"])
@@ -151,6 +152,7 @@ def capabilities() -> dict:
             "cache_dir": str(settings.orbit_cache_dir),
             "cached_groups": [f.stem for f in cache_files],
             "cache_ttl_hours": settings.orbit_cache_ttl_hours,
+            "auto_refresh_hours": effective_auto_refresh_hours(),
             "configured_groups": list(settings.orbit_groups),
         },
         "frontend_built": settings.frontend_dist.exists(),

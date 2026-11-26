@@ -90,8 +90,12 @@ def list_satellites(
     return {
         "group": group,
         "label": GROUP_LABELS.get(group, group),
-        "stale": data.stale,
+        "stale": data.is_stale(),
         "fetched_at": data.fetched_at,
+        "source": data.source,
+        "bundled": data.bundled,
+        "newest_epoch": data.newest_epoch(),
+        "error": data.error,
         "total": total,
         "items": [
             {

@@ -75,6 +75,11 @@ export default function SettingsPage() {
             <div className="p-3 text-sm space-y-1.5">
               <Row k={t.settings.cacheDir} v={caps.orbit.cache_dir} mono />
               <Row k={t.settings.ttl} v={fmt(t.settings.hoursN, { n: caps.orbit.cache_ttl_hours })} />
+              {caps.orbit.auto_refresh_hours !== undefined && (
+                <Row k={t.settings.autoOrbit} v={caps.orbit.auto_refresh_hours > 0
+                  ? fmt(t.settings.hoursN, { n: caps.orbit.auto_refresh_hours })
+                  : t.settings.autoOrbitOff} />
+              )}
               <Row k={t.settings.cachedGroups} v={caps.orbit.cached_groups.join(', ') || t.settings.emptyGroups} />
               <Row k={t.settings.configGroups} v={caps.orbit.configured_groups.join(', ')} />
             </div>

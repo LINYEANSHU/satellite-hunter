@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 
-module.exports = async ({ evaluate, send, wait }) => {
+module.exports = async ({ evaluate, send, wait, waitUntil }) => {
   const health = await evaluate("fetch('/api/health').then(r => r.ok)");
   assert.ok(health, 'Bundled backend serves health via the desktop origin');
   const saved = await evaluate("fetch('/api/saves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({name:'Desktop smoke'}) }).then(r => r.json())");
@@ -45,6 +45,27 @@ module.exports = async ({ evaluate, send, wait }) => {
   assert.ok(orbit.body.total > 0 && orbit.body.items.length === 1);
   const group = await evaluate("fetch('/api/satellites/groups').then(r => r.json()).then(rows => rows.find(row => row.group === 'stations'))");
   assert.ok(group.source && group.newest_epoch);
+  if (process.env.SH_ORBIT_SMOKE_LIVE === '1') {
+    await waitUntil(
+      () => evaluate("fetch('/api/satellites/groups').then(r => r.json()).then(gs => ['weather','amateur'].every(id => gs.some(g => g.group === id && !g.bundled && /SatNOGS/.test(g.source || ''))))"),
+      'startup background refresh writes both SatNOGS caches', 35000,
+    );
+  }
+  const publicGroups = {};
+  const offline = process.env.SH_ORBIT_OFFLINE === 'true';
+  for (const [category, id] of [['weather', 43013], ['amateur', 27607]]) {
+    const catalog = await evaluate(`fetch('/api/satellites?group=${category}').then(r => r.json())`);
+    if (offline) assert.equal(catalog.bundled, true, category + ' loads the bundled snapshot');
+    const info = catalog.items.find(item => item.norad_id === id);
+    assert.ok(info?.epoch && catalog.source);
+    const position = await evaluate(`fetch('/api/satellites/positions?group=${category}&ids=${id}&at=' + encodeURIComponent(${JSON.stringify(info.epoch)})).then(r => r.json())`);
+    assert.equal(position.items?.[0]?.[0], id);
+    const passes = await evaluate(`fetch('/api/satellites/${id}/passes?lat=44.65&lon=-63.57&hours=48&at=' + encodeURIComponent(${JSON.stringify(info.epoch)})).then(r => r.json())`);
+    assert.ok(passes.passes?.length, category + ' computes offline passes');
+    await evaluate(`document.querySelector('[data-testid=group-${category}]').click()`);
+    await wait(`document.querySelector('[data-testid=sat-${id}]') && /SatNOGS|EUMETSAT/.test(document.querySelector('[data-testid=catalog-source]')?.textContent)`);
+    publicGroups[category] = { count: catalog.total, source: catalog.source, bundled: catalog.bundled, passes: passes.passes.length };
+  }
   const natural = await evaluate("fetch('/api/solar/catalog?limit=1').then(r => r.json())");
   assert.deepEqual(natural.counts, { planet: 8, asteroid: 16000, comet: 3918 });
   const earth = await evaluate("fetch('/api/solar/trajectory/planet-earth?at=2026-11-25T00:00Z&points=24').then(r => r.json())");
@@ -54,5 +75,5 @@ module.exports = async ({ evaluate, send, wait }) => {
   await wait("document.querySelector('h1')?.textContent.match(/Solar System|太阳系/)");
   await wait("document.querySelector('canvas') || document.querySelector('svg[role=img]')");
   return { resumedSave: true, lowAngleMission: true, orbitStatus: orbit.status, orbitTotal: orbit.body.total,
-    orbitSource: group.source, orbitBundled: group.bundled, orbitEpoch: group.newest_epoch, solarCounts: natural.counts };
+    orbitSource: group.source, orbitBundled: group.bundled, orbitEpoch: group.newest_epoch, solarCounts: natural.counts, publicGroups };
 };

@@ -15,7 +15,7 @@ Build a satellite-observation network: place ground stations, predict passes, tr
 
 Extract the entire ZIP, then double-click `Satellite Hunter.exe` inside the app folder. It starts the bundled local backend automatically. Open Orbit Explorer and follow the tutorial to select a satellite and build a ground station.
 
-Earth satellite updates use CelesTrak GP and can fall back to the local cache or a bundled historical station snapshot. The Solar System view calculates heliocentric trajectories for planets, asteroids, and comets from bundled JPL data, with optional lookup by designation. [Sources and orbital models](docs/public-orbital-catalogs.md)
+Weather and amateur orbital catalogs refresh in the background using SatNOGS, with EUMETSAT as an additional weather source. The game bundles 52 weather, 154 amateur and 20 station element sets for offline positions and pass predictions. The Solar System view uses bundled JPL data and offers optional lookup by designation. [Sources and orbital models](docs/public-orbital-catalogs.md)
 
 Install [SatDump](docs/satdump.md) separately if you want to decode recordings.
 

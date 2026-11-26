@@ -10,11 +10,12 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     from app.core import config as cfg
     from app.db import database
 
     saved = {"data_dir": cfg.settings.data_dir}
+    monkeypatch.setattr(cfg.settings, "orbit_auto_refresh_hours", 0)
     cfg.settings.data_dir = tmp_path / "sh_data"
     cfg.settings.ensure_dirs()
 

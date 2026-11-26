@@ -1,9 +1,9 @@
-"""卫星目录服务：CelesTrak GP 获取 + 磁盘缓存 + 限速 + 离线回退。
+"""卫星目录服务：公共轨道源、磁盘缓存、限速和离线回退。
 
 规则（需求 10.1）：
 - 同一分组最新数据至少间隔 cache_ttl（默认 2 小时）才重新请求
 - 获取失败时使用最后一次成功缓存并标记 stale
-- 缓存文件内含 fetched_at（数据历元信息），前端据此显示数据年龄
+- fetched_at 是获取时间；每条轨道的 EPOCH 是计算时所用的历元
 """
 from __future__ import annotations
 
@@ -23,13 +23,22 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.services.orbit.omm import SatEntry, parse_celestrak_csv, parse_celestrak_json
+from app.services.orbit.providers import fetch_public_elements
 
 log = get_logger(__name__)
 _BUNDLED_DIR = Path(__file__).resolve().parents[2] / "data" / "orbit_seed"
+PUBLIC_REFRESH_GROUPS = ("weather", "amateur")
 
 
-def _cache_ttl() -> float:
-    return max(2.0, settings.orbit_cache_ttl_hours) * 3600.0
+def _cache_ttl(group: str = "") -> float:
+    scheduled = settings.orbit_auto_refresh_hours if group in PUBLIC_REFRESH_GROUPS else 0.0
+    return max(2.0, settings.orbit_cache_ttl_hours, scheduled) * 3600.0
+
+
+def effective_auto_refresh_hours() -> float:
+    if settings.orbit_offline or settings.orbit_auto_refresh_hours <= 0:
+        return 0.0
+    return max(2.0, settings.orbit_auto_refresh_hours)
 
 
 def _usable_entries(entries: list[SatEntry]) -> list[SatEntry]:
@@ -48,6 +57,16 @@ def _usable_entries(entries: list[SatEntry]) -> list[SatEntry]:
         except (TypeError, KeyError, ValueError):
             continue
     return valid
+
+
+def _merge_epochs(older: list[SatEntry], incoming: list[SatEntry]) -> list[SatEntry]:
+    """Keep coverage from partial feeds, retaining the best epoch per NORAD ID."""
+    merged: dict[int, SatEntry] = {}
+    for entry in (*older, *incoming):
+        previous = merged.get(entry.norad_id)
+        if previous is None or (entry.epoch_dt or datetime.min) >= (previous.epoch_dt or datetime.min):
+            merged[entry.norad_id] = entry
+    return list(merged.values())
 
 
 def _retry_after(header: str, now: float) -> float:
@@ -98,7 +117,6 @@ class GroupData:
         return idx
 
     def as_status(self) -> dict:
-        epochs = [e.epoch for e in self.entries if e.epoch]
         age = time.time() - self.fetched_at
         return {
             "group": self.group,
@@ -106,12 +124,19 @@ class GroupData:
             "count": len(self.entries),
             "fetched_at": self.fetched_at,
             "age_hours": round(age / 3600.0, 2),
-            "stale": self.stale or (self.group != "user_imported" and age >= _cache_ttl()),
+            "stale": self.is_stale(),
             "source": self.source,
             "bundled": self.bundled,
             "error": self.error,
-            "newest_epoch": max(epochs).isoformat() if epochs else None,
+            "newest_epoch": self.newest_epoch(),
         }
+
+    def newest_epoch(self) -> str | None:
+        epoch = max((entry.epoch for entry in self.entries if entry.epoch), default=None)
+        return epoch.isoformat() + "Z" if epoch else None
+
+    def is_stale(self) -> bool:
+        return self.stale or (self.group != "user_imported" and time.time() - self.fetched_at >= _cache_ttl(self.group))
 
 
 class CatalogService:
@@ -168,14 +193,18 @@ class CatalogService:
             entries = _usable_entries(parse_celestrak_json(blob["records"], group=group))
             if not entries:
                 return None
-            return GroupData(
+            data = GroupData(
                 group=group,
                 entries=entries,
-                fetched_at=blob["fetched_at"],
+                fetched_at=float(blob["fetched_at"]),
                 stale=False,
                 label=blob.get("label", ""),
                 source=blob.get("source", "CelesTrak GP"),
             )
+            bundled = _bundled_group(group) if group in PUBLIC_REFRESH_GROUPS else None
+            if bundled is not None:
+                data.entries = _merge_epochs(bundled.entries, data.entries)
+            return data
         except Exception as ex:
             log.warning("读取轨道缓存失败 group=%s: %s", group, ex)
             return None
@@ -187,7 +216,7 @@ class CatalogService:
             "label": data.label,
             "fetched_at": data.fetched_at,
             "source": data.source,
-            "records": [e.omm for e in data.entries],
+            "records": [{**e.omm, "OBJECT_NAME": e.name, "_SH_ORIGIN": e.origin} for e in data.entries],
         }
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(blob, ensure_ascii=False), encoding="utf-8")
@@ -199,13 +228,17 @@ class CatalogService:
         if group not in settings.orbit_groups and group != "user_imported":
             raise AppError(400, "BAD_GROUP", f"未知分组: {group}")
 
+        if group in PUBLIC_REFRESH_GROUPS and not force:
+            local = self._get_group_if_cached(group)
+            if local is not None:
+                return local
         with self._group_lock(group):
             return self._get_group_locked(group)
 
     def _get_group_locked(self, group: str) -> GroupData:
         now = time.time()
         mem = self._groups.get(group)
-        ttl = _cache_ttl()
+        ttl = _cache_ttl(group)
 
         if mem is not None and not mem.bundled and now - mem.fetched_at < ttl:
             return mem
@@ -222,14 +255,39 @@ class CatalogService:
         if settings.orbit_offline:
             return self._local_fallback(group, local, "离线模式，使用本地轨道数据")
         last_try = self._last_attempt.get(group, 0.0)
-        if now - last_try < self._min_retry_s or now < self._provider_pause():
+        if now - last_try < self._min_retry_s:
             return self._local_fallback(group, local, "在线更新暂缓，使用本地轨道数据")
+
+        if group in PUBLIC_REFRESH_GROUPS:
+            self._last_attempt[group] = now
+            try:
+                entries, source = fetch_public_elements(group)
+                entries = _usable_entries(entries)
+                if not entries:
+                    raise ValueError("公开轨道来源返回空目录")
+                return self._accept_online(group, entries, source, local)
+            except (httpx.HTTPError, OSError, ValueError, RuntimeError) as ex:
+                log.warning("公开轨道来源更新失败 group=%s: %s", group, ex)
 
         with self._online_lock:
             now = time.time()
             if now < self._provider_pause():
                 return self._local_fallback(group, local, "在线更新暂缓，使用本地轨道数据")
             return self._refresh_online(group, local, now)
+
+    def _accept_online(self, group: str, entries: list[SatEntry], source: str, local: GroupData | None) -> GroupData:
+        if group in PUBLIC_REFRESH_GROUPS and local is not None:
+            entries = _merge_epochs(local.entries, entries)
+            if any(local.index().get(entry.norad_id) is entry for entry in entries):
+                source += " + local cache"
+        data = GroupData(group, entries, time.time(), False, label=GROUP_LABELS.get(group, group), source=source)
+        try:
+            self._save_cache(data)
+        except OSError as ex:
+            log.warning("无法写入轨道缓存 group=%s: %s", group, ex)
+        self._groups[group] = data
+        log.info("轨道分组更新 group=%s count=%d source=%s", group, len(entries), source)
+        return data
 
     def _refresh_online(self, group: str, local: GroupData | None, now: float) -> GroupData:
         self._last_attempt[group] = now
@@ -244,21 +302,7 @@ class CatalogService:
             entries = _usable_entries(parse_celestrak_csv(resp.text, group=group))
             if not entries:
                 raise ValueError("CelesTrak 返回空数据")
-            data = GroupData(
-                group=group,
-                entries=entries,
-                fetched_at=now,
-                stale=False,
-                label=GROUP_LABELS.get(group, group),
-                source="CelesTrak GP (OMM CSV)",
-            )
-            try:
-                self._save_cache(data)
-            except OSError as ex:
-                log.warning("无法写入轨道缓存 group=%s: %s", group, ex)
-            self._groups[group] = data
-            log.info("CelesTrak 分组更新 group=%s count=%d", group, len(entries))
-            return data
+            return self._accept_online(group, entries, "CelesTrak GP (OMM CSV)", local)
         except (httpx.HTTPError, ValueError) as ex:
             log.warning("CelesTrak 获取失败 group=%s: %s", group, ex)
             if isinstance(ex, httpx.HTTPStatusError):
@@ -278,6 +322,21 @@ class CatalogService:
         data = replace(local, stale=True, error=reason)
         self._groups[group] = data
         return data
+
+    def run_auto_refresh(self, stop: threading.Event, interval_seconds: float) -> None:
+        if stop.wait(1.0):
+            return
+        while True:
+            for group in PUBLIC_REFRESH_GROUPS:
+                if stop.is_set():
+                    return
+                if group in settings.orbit_groups:
+                    try:
+                        self.get_group(group, force=True)
+                    except AppError as ex:
+                        log.warning("后台轨道目录暂不可更新 group=%s: %s", group, ex)
+            if stop.wait(min(interval_seconds, threading.TIMEOUT_MAX)):
+                return
 
     def entries(self, group: str) -> list[SatEntry]:
         return self.get_group(group).entries
