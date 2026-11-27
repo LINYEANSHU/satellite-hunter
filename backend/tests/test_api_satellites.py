@@ -1,8 +1,8 @@
 """卫星/地面站 API 集成测试（目录数据离线注入，不访问网络）。"""
 from __future__ import annotations
 
-import json
 import time
+from datetime import datetime
 
 import pytest
 
@@ -45,9 +45,9 @@ def fake_stations_group(monkeypatch):
     """将 stations 分组替换为离线样例数据。"""
     entries = [
         SatEntry(norad_id=25544, name="ISS (ZARYA)", omm=ISS_OMM, groups={"stations"},
-                 epoch=__import__("datetime").datetime(2026, 10, 1, 12, 0, 0)),
+                 epoch=datetime(2026, 10, 1, 12)),
         SatEntry(norad_id=48274, name="CSS (TIANHE)", omm=CSS_OMM, groups={"stations"},
-                 epoch=__import__("datetime").datetime(2026, 10, 1, 12, 0, 0)),
+                 epoch=datetime(2026, 10, 1, 12)),
     ]
     data = GroupData(group="stations", entries=entries, fetched_at=time.time(), stale=False)
     monkeypatch.setattr(catalog_service, "get_group", lambda g, force=False: data)
@@ -103,14 +103,15 @@ def test_satellite_track(client, fake_stations_group):
 def test_satellite_passes_with_coords(client, fake_stations_group):
     r = client.get(
         "/api/satellites/25544/passes",
-        params={"lat": 39.9, "lon": 116.4, "hours": 48, "min_el": 5},
+        params={"lat": 39.9, "lon": 116.4, "hours": 48, "min_el": 5, "at": "2026-11-27T05:30:00Z"},
     )
     assert r.status_code == 200
     passes = r.json()["passes"]
     assert len(passes) >= 1
-    p = passes[0]
-    assert p["aos"] < p["tca"] < p["los"]
-    assert p["max_elevation_deg"] >= 5
+    for p in passes:
+        aos, tca, los = (datetime.fromisoformat(p[key]) for key in ("aos", "tca", "los"))
+        assert aos < tca < los
+        assert p["max_elevation_deg"] >= 5
 
 
 def test_import_tle(client):
